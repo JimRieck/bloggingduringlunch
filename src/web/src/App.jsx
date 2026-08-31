@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import './App.css'
+import Login from './Login.jsx'
 
 const posts = [
   {
@@ -20,6 +22,12 @@ function formatDate(iso) {
 }
 
 function App() {
+  const [showLogin, setShowLogin] = useState(false)
+
+  if (showLogin) {
+    return <Login onBack={() => setShowLogin(false)} />
+  }
+
   return (
     <>
       <header id="site-header">
@@ -41,6 +49,9 @@ function App() {
 
       <footer id="site-footer">
         <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
+        <button type="button" className="link" onClick={() => setShowLogin(true)}>
+          Admin login
+        </button>
       </footer>
     </>
   )
