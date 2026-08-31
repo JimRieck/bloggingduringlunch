@@ -22,7 +22,7 @@ function formatDate(iso) {
 }
 
 function App() {
-  const [showLogin, setShowLogin] = useState(false)
+  const [showLogin, setShowLogin] = useState(true)
 
   if (showLogin) {
     return <Login onBack={() => setShowLogin(false)} />
