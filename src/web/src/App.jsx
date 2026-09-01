@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { AuthPanel, SetNewPasswordForm } from './Login.jsx'
-import { supabase } from './supabaseClient.js'
+import { AuthPanel } from './components/AuthPanel.jsx'
+import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
+import { supabase } from './lib/supabaseClient.js'
 
 const posts = [
   {
