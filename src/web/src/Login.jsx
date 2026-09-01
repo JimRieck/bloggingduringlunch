@@ -220,8 +220,8 @@ function ForgotPasswordForm({ onSwitch }) {
       <h2>Reset password</h2>
       {sent ? (
         <p className="auth-notice" role="status">
-          If an account exists for <strong>{email}</strong>, a reset link would be
-          sent — this is a UI preview, so nothing was actually sent.
+          If an account exists for <strong>{email}</strong>, a reset link has been
+          sent.
         </p>
       ) : (
         <>
