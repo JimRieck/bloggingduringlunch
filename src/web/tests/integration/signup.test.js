@@ -7,7 +7,7 @@
 // org via invite code -- verifying not just the resulting DB rows but
 // that RLS actually grants (or denies) the access each path implies.
 import { afterAll, describe, expect, it } from 'vitest'
-import { adminClient, createTestClient } from '../helpers/testClients.js'
+import { cleanupTestData, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -28,18 +28,7 @@ async function signUp(client, email, data) {
 }
 
 describe('signup: all account types', () => {
-  afterAll(async () => {
-    // Delete orgs first (memberships/posts/subscriptions cascade from
-    // them), then users (profiles cascade from that) -- same order
-    // used throughout this project's manual cleanup, since
-    // organizations.owner_id has no ON DELETE CASCADE back to auth.users.
-    for (const orgId of createdOrgIds) {
-      await adminClient.from('organizations').delete().eq('id', orgId)
-    }
-    for (const userId of createdUserIds) {
-      await adminClient.auth.admin.deleteUser(userId)
-    }
-  })
+  afterAll(() => cleanupTestData(createdOrgIds, createdUserIds))
 
   it('reader: skips organization choice, lands in shared BDLReaders org', async () => {
     const client = createTestClient()

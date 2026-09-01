@@ -31,3 +31,28 @@ export function createTestClient() {
 export const adminClient = createClient(url, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
+
+// Deletes orgs first (memberships/posts/subscriptions cascade from
+// them), then users (profiles cascade from that) -- organizations.owner_id
+// has no ON DELETE CASCADE back to auth.users, so deleting a user out
+// of order fails.
+//
+// One known, harmless exception: whichever reader happens to be the
+// very first ever (in a given local DB's lifetime) becomes the shared
+// BDLReaders org's owner. That org is intentionally never in
+// `orgIds` (every test run's users join or create it, but no run
+// "owns" deleting a platform-wide shared resource), so that one
+// user's deleteUser call fails the same way -- correctly, since you
+// can't delete an org's sole owner without reassigning it first. This
+// logs a warning rather than silently swallowing it, but doesn't fail
+// the suite: it happens at most once per database, not per run.
+export async function cleanupTestData(orgIds, userIds) {
+  for (const orgId of orgIds) {
+    const { error } = await adminClient.from('organizations').delete().eq('id', orgId)
+    if (error) console.warn(`cleanup: failed to delete organization ${orgId}:`, error.message)
+  }
+  for (const userId of userIds) {
+    const { error } = await adminClient.auth.admin.deleteUser(userId)
+    if (error) console.warn(`cleanup: failed to delete user ${userId}:`, error.message)
+  }
+}
