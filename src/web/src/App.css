@@ -1,0 +1,148 @@
+#site-header {
+  padding: 48px 32px 32px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.tagline {
+  color: var(--text);
+  margin-top: -16px;
+}
+
+#landing {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  padding: 48px 32px;
+  text-align: left;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 40px;
+    padding: 32px 20px;
+  }
+}
+
+#pitch {
+  flex: 1 1 0;
+
+  h1,
+  .tagline {
+    text-align: left;
+  }
+}
+
+.pitch-copy {
+  margin: 24px 0;
+  color: var(--text);
+}
+
+.pitch-points {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  li {
+    padding-left: 26px;
+    position: relative;
+  }
+
+  li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+}
+
+#pitch button.link {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+#auth-panel {
+  flex: 0 0 360px;
+
+  @media (max-width: 1024px) {
+    flex: 1 1 auto;
+  }
+}
+
+#posts {
+  flex-grow: 1;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  text-align: left;
+}
+
+.post-summary h2 {
+  margin-bottom: 4px;
+}
+
+.post-summary h2 a {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.post-summary time {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.post-summary p {
+  margin-top: 8px;
+}
+
+#site-footer {
+  padding: 24px 32px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+
+  .session-email {
+    color: var(--text-h);
+    font-size: 13px;
+  }
+
+  button.link {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+
+    &:hover {
+      color: var(--accent);
+    }
+  }
+}
