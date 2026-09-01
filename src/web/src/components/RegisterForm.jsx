@@ -6,6 +6,7 @@ import './auth.css'
 
 export function RegisterForm({ onSwitch }) {
   const [values, setValues] = useState({
+    accountType: '',
     username: '',
     email: '',
     password: '',
@@ -24,6 +25,7 @@ export function RegisterForm({ onSwitch }) {
     supabase
       .from('organizations_public')
       .select('id, name')
+      .neq('slug', 'bdlreaders')
       .then(({ data, error }) => {
         if (!error) setOrganizations(data)
         setLoadingOrgs(false)
@@ -49,8 +51,10 @@ export function RegisterForm({ onSwitch }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const isAuthor = values.accountType === 'author'
     const hasExistingOrgs = organizations.length > 0
     const nextErrors = {}
+    if (!values.accountType) nextErrors.accountType = 'Choose an account type.'
     if (!values.username.trim()) nextErrors.username = 'Choose a user ID.'
     if (!values.email.trim()) {
       nextErrors.email = 'Enter your email.'
@@ -65,10 +69,10 @@ export function RegisterForm({ onSwitch }) {
     if (values.confirmPassword !== values.password) {
       nextErrors.confirmPassword = 'Passwords don’t match.'
     }
-    if (hasExistingOrgs) {
-      if (!values.organizationId) nextErrors.organizationId = 'Choose an organization.'
-    } else {
-      if (!values.newOrganizationName.trim()) {
+    if (isAuthor) {
+      if (hasExistingOrgs) {
+        if (!values.organizationId) nextErrors.organizationId = 'Choose an organization.'
+      } else if (!values.newOrganizationName.trim()) {
         nextErrors.newOrganizationName = 'Name your organization.'
       }
     }
@@ -82,8 +86,9 @@ export function RegisterForm({ onSwitch }) {
       options: {
         data: {
           username: values.username,
-          organization_id: hasExistingOrgs ? values.organizationId : null,
-          new_organization_name: hasExistingOrgs ? null : values.newOrganizationName,
+          user_type: values.accountType,
+          organization_id: isAuthor && hasExistingOrgs ? values.organizationId : null,
+          new_organization_name: isAuthor && !hasExistingOrgs ? values.newOrganizationName : null,
         },
       },
     })
@@ -116,6 +121,34 @@ export function RegisterForm({ onSwitch }) {
   return (
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <h2>Create account</h2>
+      <fieldset className="account-type">
+        <legend>What type of user are you?</legend>
+        <label>
+          <input
+            type="radio"
+            name="accountType"
+            value="reader"
+            checked={values.accountType === 'reader'}
+            onChange={(e) => update('accountType', e.target.value)}
+          />
+          Reader — read and follow blogs
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="accountType"
+            value="author"
+            checked={values.accountType === 'author'}
+            onChange={(e) => update('accountType', e.target.value)}
+          />
+          Author — write your own blog
+        </label>
+        {errors.accountType && (
+          <span className="field-error" role="alert">
+            {errors.accountType}
+          </span>
+        )}
+      </fieldset>
       <Field label="User ID" error={errors.username}>
         <input
           type="text"
@@ -136,7 +169,8 @@ export function RegisterForm({ onSwitch }) {
         <input type="file" accept="image/*" onChange={handleAvatarChange} />
       </Field>
       {avatarPreview && <img src={avatarPreview} alt="" className="avatar-preview" />}
-      {!loadingOrgs &&
+      {values.accountType === 'author' &&
+        !loadingOrgs &&
         (organizations.length > 0 ? (
           <Field label="Organization" error={errors.organizationId}>
             <select

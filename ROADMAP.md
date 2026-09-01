@@ -39,6 +39,7 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 - [ ] Signup → create blog/workspace flow
 - [ ] Invite team members; roles (owner / editor / reader)
 - [ ] Currently registration only offers "create a new org" when *zero* organizations exist anywhere — after the first one is created, every new signup can only join an existing org, never start another. Worth revisiting once there's real demand for multiple independent blogs.
+- [x] Reader vs. author account types — registration now opens with "What type of user are you?" (Reader / Author), persisted as `profiles.user_type`. Readers skip the organization question entirely and are auto-joined (server-side, in `handle_new_user`) to a single shared "BDLReaders" organization on first use — first reader becomes its `owner`, everyone after joins as `member`. Authors keep the existing join/create-a-blog flow; `BDLReaders` is explicitly filtered out of the author-facing organization dropdown. Verified: two readers land in the same org (no duplicates) while an author still creates their own separate org. Actual per-blog "Subscribe" (follow a specific author's blog, not just being bucketed as a reader) and email notifications on new posts are still open — see Email below.
 
 ### Content & media
 - [ ] Replace placeholder posts with real CRUD (create, edit, delete, publish) — reading is done (each tenant's subdomain shows its real published posts, drafts correctly excluded); create/edit/delete UI still to build (posts are inserted by hand via SQL for now)
