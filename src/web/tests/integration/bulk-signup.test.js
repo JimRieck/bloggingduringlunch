@@ -1,20 +1,20 @@
-// Bulk/volume integration test: 50 randomized signups across all
-// three account paths (reader, author creating an org, author joining
-// one via invite code), run in concurrent batches against the real
-// local Supabase stack.
+// Bulk/volume integration test: USER_COUNT randomized signups across
+// all three account paths (reader, author creating an org, author
+// joining one via invite code), run in concurrent batches of
+// BATCH_SIZE against the real local Supabase stack.
 //
 // Deliberately uses a *small* pool of organization names so that many
-// of the ~50 signups are likely to pick the same name -- this
-// exercises the slug-collision-suffix loop in handle_new_user under
-// real concurrent inserts (multiple authors in the same batch racing
-// to create an org with the same name), not just in isolation with
-// guaranteed-unique names.
+// signups are likely to pick the same name -- this exercises the
+// slug-collision retry logic in handle_new_user under real concurrent
+// inserts (multiple authors in the same batch racing to create an org
+// with the same name), not just in isolation with guaranteed-unique
+// names.
 import { afterAll, describe, expect, it } from 'vitest'
 import { adminClient, cleanupTestData, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
-const USER_COUNT = 50
-const BATCH_SIZE = 10
+const USER_COUNT = 100
+const BATCH_SIZE = 20
 const PASSWORD = 'password123'
 
 const FIRST_NAMES = [
@@ -85,11 +85,11 @@ async function signUpOne(index, joinableOrgs) {
   return { intent, email, userId: data.user.id, membership, membershipError }
 }
 
-describe('bulk signup: 50 randomized users', () => {
+describe(`bulk signup: ${USER_COUNT} randomized users`, () => {
   afterAll(() => cleanupTestData(createdOrgIds, createdUserIds))
 
   it(
-    'creates 50 users across reader/author-create/author-join with no errors',
+    `creates ${USER_COUNT} users across reader/author-create/author-join with no errors`,
     async () => {
       const joinableOrgs = []
       const results = []
@@ -127,8 +127,8 @@ describe('bulk signup: 50 randomized users', () => {
       const joiners = results.filter((r) => r.intent === 'author-join')
 
       // The random split should realistically produce a mix of all
-      // three across 50 users -- would only fail if Math.random()
-      // were somehow degenerate.
+      // three across USER_COUNT users -- would only fail if
+      // Math.random() were somehow degenerate.
       expect(readers.length).toBeGreaterThan(0)
       expect(creators.length).toBeGreaterThan(0)
 
