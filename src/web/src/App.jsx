@@ -4,6 +4,7 @@ import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { Avatar } from './components/Avatar.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
+import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
 import { getTenantSlugFromHostname } from './lib/tenant.js'
 
@@ -68,6 +69,10 @@ function App() {
 
   if (tenantSlug) {
     return <TenantBlog slug={tenantSlug} />
+  }
+
+  if (window.location.pathname === '/directory') {
+    return <UserDirectory session={session} />
   }
 
   if (passwordRecovery) {
@@ -136,6 +141,9 @@ function App() {
                 Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
               </span>
             )}
+            <a className="link" href="/directory">
+              User directory
+            </a>
             <button type="button" className="link" onClick={() => supabase.auth.signOut()}>
               Log out
             </button>

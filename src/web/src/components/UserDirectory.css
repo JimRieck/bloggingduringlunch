@@ -1,0 +1,61 @@
+#directory {
+  flex-grow: 1;
+  padding: 48px 32px;
+  text-align: left;
+}
+
+#directory h1 {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.directory-status {
+  color: var(--text);
+  text-align: center;
+  padding: 48px 32px;
+}
+
+.directory-table-wrap {
+  overflow-x: auto;
+}
+
+.directory-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+}
+
+.directory-table th {
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.directory-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.directory-name {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.directory-email {
+  font-size: 13px;
+  color: var(--text);
+}
+
+#directory-gate {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 48px 24px;
+}
