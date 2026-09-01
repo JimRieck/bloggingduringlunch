@@ -31,6 +31,7 @@ function App() {
   const [showLogin, setShowLogin] = useState(true)
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [ownedOrg, setOwnedOrg] = useState(null)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
@@ -52,6 +53,17 @@ function App() {
       .eq('id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data))
+  }, [session])
+
+  useEffect(() => {
+    if (!session) return
+    supabase
+      .from('memberships')
+      .select('organizations(name, invite_code)')
+      .eq('user_id', session.user.id)
+      .eq('role', 'owner')
+      .maybeSingle()
+      .then(({ data }) => setOwnedOrg(data?.organizations ?? null))
   }, [session])
 
   if (tenantSlug) {
@@ -119,6 +131,11 @@ function App() {
         {session ? (
           <>
             <span className="session-email">{session.user.email}</span>
+            {ownedOrg && (
+              <span className="invite-code">
+                Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
+              </span>
+            )}
             <button type="button" className="link" onClick={() => supabase.auth.signOut()}>
               Log out
             </button>

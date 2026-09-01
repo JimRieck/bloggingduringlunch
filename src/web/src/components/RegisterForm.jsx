@@ -11,26 +11,13 @@ export function RegisterForm({ onSwitch }) {
     email: '',
     password: '',
     confirmPassword: '',
-    organizationId: '',
+    inviteCode: '',
     newOrganizationName: '',
   })
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState('')
-  const [organizations, setOrganizations] = useState([])
-  const [loadingOrgs, setLoadingOrgs] = useState(true)
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState('')
-
-  useEffect(() => {
-    supabase
-      .from('organizations_public')
-      .select('id, name')
-      .neq('slug', 'bdlreaders')
-      .then(({ data, error }) => {
-        if (!error) setOrganizations(data)
-        setLoadingOrgs(false)
-      })
-  }, [])
 
   useEffect(() => {
     return () => {
@@ -52,7 +39,7 @@ export function RegisterForm({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault()
     const isAuthor = values.accountType === 'author'
-    const hasExistingOrgs = organizations.length > 0
+    const inviteCode = values.inviteCode.trim()
     const nextErrors = {}
     if (!values.accountType) nextErrors.accountType = 'Choose an account type.'
     if (!values.username.trim()) nextErrors.username = 'Choose a user ID.'
@@ -69,17 +56,26 @@ export function RegisterForm({ onSwitch }) {
     if (values.confirmPassword !== values.password) {
       nextErrors.confirmPassword = 'Passwords don’t match.'
     }
-    if (isAuthor) {
-      if (hasExistingOrgs) {
-        if (!values.organizationId) nextErrors.organizationId = 'Choose an organization.'
-      } else if (!values.newOrganizationName.trim()) {
-        nextErrors.newOrganizationName = 'Name your organization.'
-      }
+    if (isAuthor && !inviteCode && !values.newOrganizationName.trim()) {
+      nextErrors.newOrganizationName = 'Enter an invite code or name your organization.'
     }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
     setNotice('')
+
+    let invitedOrgName = null
+    if (isAuthor && inviteCode) {
+      const { data: lookup, error: lookupError } = await supabase.rpc('lookup_invite_code', {
+        code: inviteCode,
+      })
+      if (lookupError || !lookup || lookup.length === 0) {
+        setErrors({ inviteCode: 'That invite code isn’t valid.' })
+        return
+      }
+      invitedOrgName = lookup[0].organization_name
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
@@ -87,8 +83,8 @@ export function RegisterForm({ onSwitch }) {
         data: {
           username: values.username,
           user_type: values.accountType,
-          organization_id: isAuthor && hasExistingOrgs ? values.organizationId : null,
-          new_organization_name: isAuthor && !hasExistingOrgs ? values.newOrganizationName : null,
+          invite_code: isAuthor && inviteCode ? inviteCode : null,
+          new_organization_name: isAuthor && !inviteCode ? values.newOrganizationName : null,
         },
       },
     })
@@ -113,7 +109,13 @@ export function RegisterForm({ onSwitch }) {
 
     if (data.user && !data.session) {
       setNotice('Check your email to confirm your account before logging in.')
+    } else if (invitedOrgName) {
+      setNotice(`Account created — you’ve joined ${invitedOrgName}.`)
     } else {
+      // Signing up logs the user straight in, which navigates away
+      // from this form before there's time to show more detail here
+      // (e.g. a newly created org's invite code) -- that's shown
+      // persistently in the logged-in footer instead (App.jsx).
       setNotice('Account created.')
     }
   }
@@ -169,31 +171,27 @@ export function RegisterForm({ onSwitch }) {
         <input type="file" accept="image/*" onChange={handleAvatarChange} />
       </Field>
       {avatarPreview && <img src={avatarPreview} alt="" className="avatar-preview" />}
-      {values.accountType === 'author' &&
-        !loadingOrgs &&
-        (organizations.length > 0 ? (
-          <Field label="Organization" error={errors.organizationId}>
-            <select
-              value={values.organizationId}
-              onChange={(e) => update('organizationId', e.target.value)}
-            >
-              <option value="">Select an organization…</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
+      {values.accountType === 'author' && (
+        <>
+          <Field label="Invite code" error={errors.inviteCode}>
+            <input
+              type="text"
+              placeholder="Have a code from an existing blog?"
+              value={values.inviteCode}
+              onChange={(e) => update('inviteCode', e.target.value)}
+            />
           </Field>
-        ) : (
           <Field label="Organization name" error={errors.newOrganizationName}>
             <input
               type="text"
+              placeholder="Leave blank if using an invite code above"
               value={values.newOrganizationName}
               onChange={(e) => update('newOrganizationName', e.target.value)}
+              disabled={!!values.inviteCode.trim()}
             />
           </Field>
-        ))}
+        </>
+      )}
       <Field label="Password" error={errors.password}>
         <input
           type="password"
