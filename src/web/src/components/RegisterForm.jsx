@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Field } from './Field.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { EMAIL_PATTERN } from '../lib/validation.js'
@@ -10,9 +10,23 @@ export function RegisterForm({ onSwitch }) {
     email: '',
     password: '',
     confirmPassword: '',
+    organizationId: '',
+    newOrganizationName: '',
   })
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState('')
+  const [organizations, setOrganizations] = useState([])
+  const [loadingOrgs, setLoadingOrgs] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('organizations_public')
+      .select('id, name')
+      .then(({ data, error }) => {
+        if (!error) setOrganizations(data)
+        setLoadingOrgs(false)
+      })
+  }, [])
 
   function update(field, value) {
     setValues((v) => ({ ...v, [field]: value }))
@@ -20,6 +34,7 @@ export function RegisterForm({ onSwitch }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const hasExistingOrgs = organizations.length > 0
     const nextErrors = {}
     if (!values.username.trim()) nextErrors.username = 'Choose a user ID.'
     if (!values.email.trim()) {
@@ -35,6 +50,13 @@ export function RegisterForm({ onSwitch }) {
     if (values.confirmPassword !== values.password) {
       nextErrors.confirmPassword = 'Passwords don’t match.'
     }
+    if (hasExistingOrgs) {
+      if (!values.organizationId) nextErrors.organizationId = 'Choose an organization.'
+    } else {
+      if (!values.newOrganizationName.trim()) {
+        nextErrors.newOrganizationName = 'Name your organization.'
+      }
+    }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -42,7 +64,13 @@ export function RegisterForm({ onSwitch }) {
     const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
-      options: { data: { username: values.username } },
+      options: {
+        data: {
+          username: values.username,
+          organization_id: hasExistingOrgs ? values.organizationId : null,
+          new_organization_name: hasExistingOrgs ? null : values.newOrganizationName,
+        },
+      },
     })
     if (error) {
       setNotice(error.message)
@@ -72,6 +100,30 @@ export function RegisterForm({ onSwitch }) {
           onChange={(e) => update('email', e.target.value)}
         />
       </Field>
+      {!loadingOrgs &&
+        (organizations.length > 0 ? (
+          <Field label="Organization" error={errors.organizationId}>
+            <select
+              value={values.organizationId}
+              onChange={(e) => update('organizationId', e.target.value)}
+            >
+              <option value="">Select an organization…</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          <Field label="Organization name" error={errors.newOrganizationName}>
+            <input
+              type="text"
+              value={values.newOrganizationName}
+              onChange={(e) => update('newOrganizationName', e.target.value)}
+            />
+          </Field>
+        ))}
       <Field label="Password" error={errors.password}>
         <input
           type="password"

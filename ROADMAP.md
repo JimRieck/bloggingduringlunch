@@ -21,7 +21,7 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 ### Multi-tenancy
 - [x] Per-tenant data isolation — RLS policies keyed off `memberships`; verified anon requests only see published posts, never drafts
 - [ ] Subdomain or custom-domain routing per tenant
-- [ ] Tenant/blog creation flow — `organizations` table + owner-membership + free-subscription triggers verified firing correctly; UI still to build
+- [x] Tenant/blog creation flow — registration now includes an Organization field (dropdown of existing orgs to join as `member`, or a name field to create the first one as `owner` when none exist yet); provisioning happens server-side in the `handle_new_user` trigger via `organizations_public` view + signup metadata, so it works regardless of email-confirmation settings. Verified: creating an org auto-slugs it and makes the creator owner; joining an existing org adds a member row, no duplicate org.
 
 ### Authentication
 - [x] Real account creation — `Login.jsx`'s Register form calls `supabase.auth.signUp`; verified a real account + matching `profiles` row gets created
@@ -38,6 +38,7 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 ### Onboarding
 - [ ] Signup → create blog/workspace flow
 - [ ] Invite team members; roles (owner / editor / reader)
+- [ ] Currently registration only offers "create a new org" when *zero* organizations exist anywhere — after the first one is created, every new signup can only join an existing org, never start another. Worth revisiting once there's real demand for multiple independent blogs.
 
 ### Content & media
 - [ ] Replace placeholder posts with real CRUD (create, edit, delete, publish) — `posts` table + RLS verified in Supabase (confirmed anon can read published posts only, never drafts); CRUD UI still to build

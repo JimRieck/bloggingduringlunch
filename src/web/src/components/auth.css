@@ -39,7 +39,8 @@
 
 .field input[type='text'],
 .field input[type='email'],
-.field input[type='password'] {
+.field input[type='password'],
+.field select {
   font: inherit;
   font-size: 16px;
   padding: 8px 10px;
