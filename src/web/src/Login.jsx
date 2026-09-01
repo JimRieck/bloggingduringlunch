@@ -30,7 +30,11 @@ function LoginForm({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault()
     const nextErrors = {}
-    if (!values.userId.trim()) nextErrors.userId = 'Enter your email.'
+    if (!values.userId.trim()) {
+      nextErrors.userId = 'Enter your email.'
+    } else if (!EMAIL_PATTERN.test(values.userId)) {
+      nextErrors.userId = 'Enter a valid email address.'
+    }
     if (!values.password) nextErrors.password = 'Enter your password.'
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
