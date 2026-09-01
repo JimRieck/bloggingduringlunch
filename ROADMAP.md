@@ -59,3 +59,10 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 - [ ] Terms of Service
 - [ ] Privacy Policy
 - [ ] Data handling/retention policy
+
+### Testing
+Before this: zero automated tests -- every verification in this project was done by hand (curl/psql, driving the browser). That's how bugs like the BDLReaders dropdown leak and the invite-code notice never being shown slipped through until manually re-tested.
+- [x] Integration test suite (`src/web/tests/`, Vitest) — runs against a real local Supabase stack, not mocked. `npm test` in `src/web`. First suite (`tests/integration/signup.test.js`) covers all three signup paths: reader (auto-joins the shared BDLReaders org), author creating a new org (becomes `owner`, gets a working `invite_code`, free subscription auto-created), and author joining via invite code (becomes `editor` and -- the actual regression this exists to catch -- can really insert a post under RLS, not just get a DB row). Also covers an invalid invite code resolving to nothing. Uses a service-role client (`.env.test.local`, gitignored — see `.env.test.example`) only for teardown; every assertion goes through an anon-key client so it's genuinely exercising RLS the way a real user would. Unique emails per run + full cleanup in `afterAll`, verified repeatable back-to-back with no leftover data.
+- [ ] Not yet covered: posts CRUD (once that UI exists), the forgot-password/recovery flow, avatar upload, tenant subdomain routing, the `/directory` page.
+- [ ] No CI wiring yet — tests only run when someone remembers to run `npm test` locally with Supabase started.
+- [ ] No frontend component/unit tests (React Testing Library or similar) — current suite is backend/RLS-focused, doesn't catch UI-only bugs (e.g. wrong field disabled, notice text wrong).
