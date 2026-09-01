@@ -28,7 +28,7 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 - [x] Email verification — Supabase Auth email confirmations (local dev: Mailpit at http://127.0.0.1:54324); local config has confirmations off by default (signup logs straight in) — revisit before production
 - [x] Session/token-based auth wired to the existing login UI — verified session persists across reload and clears on logout
 - [x] Forgot-password request flow — verified the recovery email actually arrives in Mailpit
-- [ ] "Set new password" completion screen for the emailed recovery link (not built yet)
+- [x] "Set new password" completion screen for the emailed recovery link — clicking the emailed link lands on it automatically (via the `PASSWORD_RECOVERY` auth event); verified end-to-end including logging in with the new password afterward
 
 ### Billing & subscriptions
 - [ ] Integrate a payment provider (e.g. Stripe) — a placeholder `subscriptions` table + RLS already exists per organization (`supabase/migrations/`), unpopulated until Stripe is wired up

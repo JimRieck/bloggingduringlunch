@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import Login from './Login.jsx'
+import Login, { SetNewPasswordForm } from './Login.jsx'
 import { supabase } from './supabaseClient.js'
 
 const posts = [
@@ -25,14 +25,22 @@ function formatDate(iso) {
 function App() {
   const [showLogin, setShowLogin] = useState(true)
   const [session, setSession] = useState(null)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => setSession(session))
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session)
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+    })
     return () => subscription.unsubscribe()
   }, [])
+
+  if (passwordRecovery) {
+    return <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
+  }
 
   if (showLogin && !session) {
     return <Login onBack={() => setShowLogin(false)} />
