@@ -9,6 +9,80 @@
   margin-top: -16px;
 }
 
+#landing {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  padding: 48px 32px;
+  text-align: left;
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 40px;
+    padding: 32px 20px;
+  }
+}
+
+#pitch {
+  flex: 1 1 0;
+
+  h1,
+  .tagline {
+    text-align: left;
+  }
+}
+
+.pitch-copy {
+  margin: 24px 0;
+  color: var(--text);
+}
+
+.pitch-points {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  li {
+    padding-left: 26px;
+    position: relative;
+  }
+
+  li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+}
+
+#pitch button.link {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+#auth-panel {
+  flex: 0 0 360px;
+
+  @media (max-width: 1024px) {
+    flex: 1 1 auto;
+  }
+}
+
 #posts {
   flex-grow: 1;
   padding: 32px;

@@ -332,21 +332,14 @@ export function SetNewPasswordForm({ onDone }) {
   )
 }
 
-function Login({ onBack }) {
+export function AuthPanel() {
   const [view, setView] = useState('login')
 
   return (
-    <div id="auth-screen">
-      <div className="auth-card">
-        {view === 'login' && <LoginForm onSwitch={setView} />}
-        {view === 'register' && <RegisterForm onSwitch={setView} />}
-        {view === 'forgot' && <ForgotPasswordForm onSwitch={setView} />}
-      </div>
-      <button type="button" className="link back-link" onClick={onBack}>
-        &larr; Back to blog
-      </button>
+    <div className="auth-card">
+      {view === 'login' && <LoginForm onSwitch={setView} />}
+      {view === 'register' && <RegisterForm onSwitch={setView} />}
+      {view === 'forgot' && <ForgotPasswordForm onSwitch={setView} />}
     </div>
   )
 }
-
-export default Login

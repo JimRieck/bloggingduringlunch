@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import Login, { SetNewPasswordForm } from './Login.jsx'
+import { AuthPanel, SetNewPasswordForm } from './Login.jsx'
 import { supabase } from './supabaseClient.js'
 
 const posts = [
@@ -43,7 +43,31 @@ function App() {
   }
 
   if (showLogin && !session) {
-    return <Login onBack={() => setShowLogin(false)} />
+    return (
+      <div id="landing">
+        <section id="pitch">
+          <h1>Blogging During Lunch</h1>
+          <p className="tagline">Short posts, written on a lunch break.</p>
+          <p className="pitch-copy">
+            A free technical blogging platform built for professional software
+            engineers. Write about what you shipped, what broke, and what you
+            learned — no CMS to wrestle with, no paywall, no ads. Just your
+            writing.
+          </p>
+          <ul className="pitch-points">
+            <li>Free for individual engineers, no catches</li>
+            <li>Built for technical writing — code blocks and all</li>
+            <li>Publish in minutes and own what you write</li>
+          </ul>
+          <button type="button" className="link" onClick={() => setShowLogin(false)}>
+            Prefer to just read? View the blog →
+          </button>
+        </section>
+        <section id="auth-panel">
+          <AuthPanel />
+        </section>
+      </div>
+    )
   }
 
   return (
