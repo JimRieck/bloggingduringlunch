@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import Login from './Login.jsx'
+import { supabase } from './supabaseClient.js'
 
 const posts = [
   {
@@ -23,8 +24,17 @@ function formatDate(iso) {
 
 function App() {
   const [showLogin, setShowLogin] = useState(true)
+  const [session, setSession] = useState(null)
 
-  if (showLogin) {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => setSession(session))
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (showLogin && !session) {
     return <Login onBack={() => setShowLogin(false)} />
   }
 
@@ -49,9 +59,18 @@ function App() {
 
       <footer id="site-footer">
         <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
-        <button type="button" className="link" onClick={() => setShowLogin(true)}>
-          Admin login
-        </button>
+        {session ? (
+          <>
+            <span className="session-email">{session.user.email}</span>
+            <button type="button" className="link" onClick={() => supabase.auth.signOut()}>
+              Log out
+            </button>
+          </>
+        ) : (
+          <button type="button" className="link" onClick={() => setShowLogin(true)}>
+            Admin login
+          </button>
+        )}
       </footer>
     </>
   )

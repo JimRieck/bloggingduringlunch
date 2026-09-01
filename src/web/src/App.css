@@ -52,6 +52,11 @@
   gap: 8px;
   align-items: center;
 
+  .session-email {
+    color: var(--text-h);
+    font-size: 13px;
+  }
+
   button.link {
     font: inherit;
     font-size: 13px;

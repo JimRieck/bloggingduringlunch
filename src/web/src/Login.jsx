@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './Login.css'
+import { supabase } from './supabaseClient.js'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -26,24 +27,29 @@ function LoginForm({ onSwitch }) {
     setValues((v) => ({ ...v, [field]: value }))
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const nextErrors = {}
-    if (!values.userId.trim()) nextErrors.userId = 'Enter your user ID or email.'
+    if (!values.userId.trim()) nextErrors.userId = 'Enter your email.'
     if (!values.password) nextErrors.password = 'Enter your password.'
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length === 0) {
-      setNotice('This is a UI preview — logging in isn’t wired up yet.')
-    }
+    if (Object.keys(nextErrors).length > 0) return
+
+    setNotice('')
+    const { error } = await supabase.auth.signInWithPassword({
+      email: values.userId,
+      password: values.password,
+    })
+    setNotice(error ? error.message : 'Logged in.')
   }
 
   return (
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <h2>Log in</h2>
-      <Field label="User ID or email" error={errors.userId}>
+      <Field label="Email" error={errors.userId}>
         <input
-          type="text"
-          autoComplete="username"
+          type="email"
+          autoComplete="email"
           value={values.userId}
           onChange={(e) => update('userId', e.target.value)}
         />
@@ -98,7 +104,7 @@ function RegisterForm({ onSwitch }) {
     setValues((v) => ({ ...v, [field]: value }))
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const nextErrors = {}
     if (!values.username.trim()) nextErrors.username = 'Choose a user ID.'
@@ -116,8 +122,20 @@ function RegisterForm({ onSwitch }) {
       nextErrors.confirmPassword = 'Passwords don’t match.'
     }
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length === 0) {
-      setNotice('This is a UI preview — account creation isn’t wired up yet.')
+    if (Object.keys(nextErrors).length > 0) return
+
+    setNotice('')
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: { data: { username: values.username } },
+    })
+    if (error) {
+      setNotice(error.message)
+    } else if (data.user && !data.session) {
+      setNotice('Check your email to confirm your account before logging in.')
+    } else {
+      setNotice('Account created.')
     }
   }
 
@@ -178,7 +196,7 @@ function ForgotPasswordForm({ onSwitch }) {
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!email.trim()) {
       setError('Enter your email.')
@@ -191,6 +209,9 @@ function ForgotPasswordForm({ onSwitch }) {
       return
     }
     setError('')
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
     setSent(true)
   }
 
