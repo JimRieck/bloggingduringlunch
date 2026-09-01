@@ -17,6 +17,8 @@ export function RegisterForm({ onSwitch }) {
   const [notice, setNotice] = useState('')
   const [organizations, setOrganizations] = useState([])
   const [loadingOrgs, setLoadingOrgs] = useState(true)
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState('')
 
   useEffect(() => {
     supabase
@@ -28,8 +30,21 @@ export function RegisterForm({ onSwitch }) {
       })
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    }
+  }, [avatarPreview])
+
   function update(field, value) {
     setValues((v) => ({ ...v, [field]: value }))
+  }
+
+  function handleAvatarChange(e) {
+    const file = e.target.files?.[0] ?? null
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    setAvatarFile(file)
+    setAvatarPreview(file ? URL.createObjectURL(file) : '')
   }
 
   async function handleSubmit(e) {
@@ -74,7 +89,24 @@ export function RegisterForm({ onSwitch }) {
     })
     if (error) {
       setNotice(error.message)
-    } else if (data.user && !data.session) {
+      return
+    }
+
+    if (avatarFile && data.session) {
+      const ext = avatarFile.name.split('.').pop()
+      const path = `${data.user.id}/avatar.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, avatarFile, { upsert: true })
+      if (!uploadError) {
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('avatars').getPublicUrl(path)
+        await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', data.user.id)
+      }
+    }
+
+    if (data.user && !data.session) {
       setNotice('Check your email to confirm your account before logging in.')
     } else {
       setNotice('Account created.')
@@ -100,6 +132,10 @@ export function RegisterForm({ onSwitch }) {
           onChange={(e) => update('email', e.target.value)}
         />
       </Field>
+      <Field label="Profile image (optional)">
+        <input type="file" accept="image/*" onChange={handleAvatarChange} />
+      </Field>
+      {avatarPreview && <img src={avatarPreview} alt="" className="avatar-preview" />}
       {!loadingOrgs &&
         (organizations.length > 0 ? (
           <Field label="Organization" error={errors.organizationId}>

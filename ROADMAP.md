@@ -42,7 +42,7 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 
 ### Content & media
 - [ ] Replace placeholder posts with real CRUD (create, edit, delete, publish) — `posts` table + RLS verified in Supabase (confirmed anon can read published posts only, never drafts); CRUD UI still to build
-- [ ] Blob storage for images/media — use Supabase Storage (buckets + storage RLS policies), not yet configured
+- [x] Blob storage for images/media — Supabase Storage `avatars` bucket (public read, write restricted to the owning user's folder) live for profile images; registration now has an optional profile-image upload, stored via Storage and shown as an avatar in the upper-right corner when logged in (falls back to the user's initial when no image is set). Broader media storage (post images) still to come.
 
 ### Email
 - [ ] Transactional email provider (welcome emails, password reset, billing receipts) — local dev gets auth emails for free via Supabase's built-in Inbucket; production still needs a real SMTP provider configured for the hosted Supabase project
