@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
+import { Avatar } from './components/Avatar.jsx'
+import { TenantBlog } from './components/TenantBlog.jsx'
 import { supabase } from './lib/supabaseClient.js'
+import { getTenantSlugFromHostname } from './lib/tenant.js'
 
 const posts = [
   {
@@ -24,8 +27,10 @@ function formatDate(iso) {
 }
 
 function App() {
+  const tenantSlug = getTenantSlugFromHostname()
   const [showLogin, setShowLogin] = useState(true)
   const [session, setSession] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
@@ -38,6 +43,20 @@ function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!session) return
+    supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', session.user.id)
+      .single()
+      .then(({ data }) => setProfile(data))
+  }, [session])
+
+  if (tenantSlug) {
+    return <TenantBlog slug={tenantSlug} />
+  }
 
   if (passwordRecovery) {
     return <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
@@ -73,6 +92,11 @@ function App() {
 
   return (
     <>
+      {session && (
+        <div id="user-bar">
+          <Avatar url={profile?.avatar_url} label={session.user.email} />
+        </div>
+      )}
       <header id="site-header">
         <h1>Blogging During Lunch</h1>
         <p className="tagline">Short posts, written on a lunch break.</p>
