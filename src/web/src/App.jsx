@@ -3,7 +3,9 @@ import './App.css'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { Avatar } from './components/Avatar.jsx'
+import { TenantBlog } from './components/TenantBlog.jsx'
 import { supabase } from './lib/supabaseClient.js'
+import { getTenantSlugFromHostname } from './lib/tenant.js'
 
 const posts = [
   {
@@ -25,6 +27,7 @@ function formatDate(iso) {
 }
 
 function App() {
+  const tenantSlug = getTenantSlugFromHostname()
   const [showLogin, setShowLogin] = useState(true)
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -50,6 +53,10 @@ function App() {
       .single()
       .then(({ data }) => setProfile(data))
   }, [session])
+
+  if (tenantSlug) {
+    return <TenantBlog slug={tenantSlug} />
+  }
 
   if (passwordRecovery) {
     return <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
