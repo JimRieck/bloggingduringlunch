@@ -80,21 +80,6 @@
   }
 }
 
-.field input[type='file'] {
-  font: inherit;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.avatar-preview {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--border);
-  margin: -8px 0 16px;
-}
-
 .field-error {
   color: var(--accent);
   font-size: 13px;

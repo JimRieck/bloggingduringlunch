@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Field } from './Field.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { EMAIL_PATTERN } from '../lib/validation.js'
@@ -16,24 +16,9 @@ export function RegisterForm({ onSwitch }) {
   })
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState('')
-  const [avatarFile, setAvatarFile] = useState(null)
-  const [avatarPreview, setAvatarPreview] = useState('')
-
-  useEffect(() => {
-    return () => {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
-    }
-  }, [avatarPreview])
 
   function update(field, value) {
     setValues((v) => ({ ...v, [field]: value }))
-  }
-
-  function handleAvatarChange(e) {
-    const file = e.target.files?.[0] ?? null
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
-    setAvatarFile(file)
-    setAvatarPreview(file ? URL.createObjectURL(file) : '')
   }
 
   async function handleSubmit(e) {
@@ -91,20 +76,6 @@ export function RegisterForm({ onSwitch }) {
     if (error) {
       setNotice(error.message)
       return
-    }
-
-    if (avatarFile && data.session) {
-      const ext = avatarFile.name.split('.').pop()
-      const path = `${data.user.id}/avatar.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(path, avatarFile, { upsert: true })
-      if (!uploadError) {
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from('avatars').getPublicUrl(path)
-        await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', data.user.id)
-      }
     }
 
     if (data.user && !data.session) {
@@ -167,10 +138,6 @@ export function RegisterForm({ onSwitch }) {
           onChange={(e) => update('email', e.target.value)}
         />
       </Field>
-      <Field label="Profile image (optional)">
-        <input type="file" accept="image/*" onChange={handleAvatarChange} />
-      </Field>
-      {avatarPreview && <img src={avatarPreview} alt="" className="avatar-preview" />}
       {values.accountType === 'author' && (
         <>
           <Field label="Invite code" error={errors.inviteCode}>
