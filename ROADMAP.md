@@ -46,14 +46,17 @@ Backend is **Supabase** (Postgres + Auth + Storage) — the frontend calls Supab
 - [x] Blob storage for images/media — Supabase Storage `avatars` bucket (public read, write restricted to the owning user's folder) live for profile images; registration now has an optional profile-image upload, stored via Storage and shown as an avatar in the upper-right corner when logged in (falls back to the user's initial when no image is set). Broader media storage (post images) still to come.
 
 ### Email
-- [ ] Transactional email provider (welcome emails, password reset, billing receipts) — local dev gets auth emails for free via Supabase's built-in Inbucket; production still needs a real SMTP provider configured for the hosted Supabase project
+- [x] Transactional email provider — real SMTP via [Resend](https://resend.com) configured on the hosted Supabase project (Authentication → Emails). Sender is `onboarding@resend.dev` for now (Resend's SMTP relay rejects sends from an unverified custom domain — tried `noreply@bloggingduringlunch.com` first, got `Domain not verified`); verifying the real domain in Resend (SPF/DKIM/DMARC DNS records) is still open, tracked below. Confirmation emails verified actually arriving in a real inbox, twice, end-to-end through the real signup flow.
 
 ### Deployment & ops
 - [x] Install Docker Desktop locally (required enabling WSL2 via `wsl --install`) so the Supabase CLI's local stack can run
-- [ ] Provision a hosted Supabase project for production
-- [ ] Choose a hosting target (e.g. Azure Container Apps, given Aspire)
-- [ ] Custom domains + SSL per tenant
-- [ ] Production logging/monitoring (OpenTelemetry export beyond the local Aspire dashboard)
+- [x] Provision a hosted Supabase project for production — `bcgvmvfndwubqfrxqopa.supabase.co`, all 11 migrations pushed via `supabase link` + `supabase db push` and verified directly against the real API (schema, RLS, the `lookup_invite_code` RPC, the `avatars` storage bucket all confirmed present and correct)
+- [x] Choose a hosting target — **Vercel** (Hobby/free tier for now, upgrade later); considered Azure Container Apps + Terraform to let Aspire drive deployment the way the user's used to, but Aspire has no Vercel integration and there's no infrastructure layer to provision on Vercel in the first place, so that combination doesn't apply here. Site is live at `bloggingduringlunch.vercel.app`, Root Directory set to `src/web`, `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` env vars point at the hosted project (added as plain config, not "Sensitive" — they're `VITE_`-prefixed and get bundled into the public client JS regardless, so marking them secret would only add friction with no real protection; RLS is what actually protects data). Auto-deploys on push to `main` via Vercel's GitHub integration, no Actions needed. `vercel.json` added for SPA-route fallback (paths like `/directory` need to resolve to `index.html` on direct load, not just client-side nav).
+- [x] Supabase Auth URL Configuration updated to point Site URL / Redirect URLs at `https://bloggingduringlunch.vercel.app` instead of the `localhost:3000` default — caught this the hard way (first real confirmation-email test redirected to a dead `localhost:3000` link) before fixing it; confirmed working correctly on a second full registration end-to-end.
+- [ ] **Known bug, not yet fixed**: profile-image upload silently fails whenever email confirmation is required (true on this hosted project, unlike local dev) — `RegisterForm.jsx` only uploads the avatar if signup returns an *immediate* session, which a confirmation-required signup never does. Confirmed happening for real on the deployed site: registered with a real photo selected, `avatar_url` stayed `null`, no error shown. Needs the upload moved to happen after confirmation instead of only at signup time.
+- [ ] Wildcard/custom domain (`bloggingduringlunch.com`, plus `<tenant>.bloggingduringlunch.com` subdomain routing) — Vercel's free Hobby tier doesn't support wildcard domains at all, so this is blocked until upgrading to Pro; only the `.vercel.app` domain works for now
+- [ ] Verify the real `bloggingduringlunch.com` domain in Resend (SPF/DKIM/DMARC) so sender email can move off `onboarding@resend.dev`
+- [ ] Production logging/monitoring (OpenTelemetry export beyond the local Aspire dashboard) — moot for Vercel specifically (Aspire isn't part of this deploy path at all), but still relevant if Supabase/app-level monitoring is wanted
 
 ### Legal
 - [ ] Terms of Service
