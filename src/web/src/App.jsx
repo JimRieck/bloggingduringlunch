@@ -3,6 +3,7 @@ import './App.css'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { Avatar } from './components/Avatar.jsx'
+import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
@@ -50,7 +51,7 @@ function App() {
     if (!session) return
     supabase
       .from('profiles')
-      .select('avatar_url')
+      .select('avatar_url, profile_setup_dismissed')
       .eq('id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data))
@@ -113,6 +114,13 @@ function App() {
         <div id="user-bar">
           <Avatar url={profile?.avatar_url} label={session.user.email} />
         </div>
+      )}
+      {session && profile && !profile.avatar_url && !profile.profile_setup_dismissed && (
+        <ProfileSetupBanner
+          userId={session.user.id}
+          onUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
+          onDismissed={() => setProfile((p) => ({ ...p, profile_setup_dismissed: true }))}
+        />
       )}
       <header id="site-header">
         <h1>Blogging During Lunch</h1>

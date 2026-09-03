@@ -1,0 +1,18 @@
+#profile-setup-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  padding: 10px 16px;
+  margin: 16px 32px 0;
+
+  input[type='file'] {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+  }
+}
