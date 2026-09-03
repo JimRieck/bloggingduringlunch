@@ -1,7 +1,19 @@
 #user-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
   padding: 16px 32px 0;
+}
+
+#user-bar .new-tab-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+
+  @media (prefers-color-scheme: dark) {
+    filter: invert(1);
+  }
 }
 
 #site-header {

@@ -112,6 +112,18 @@ function App() {
     <>
       {session && (
         <div id="user-bar">
+          <a
+            href="/directory"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open user directory in a new tab"
+          >
+            <img
+              src="/icons/external-link.svg"
+              alt="Open user directory in a new tab"
+              className="new-tab-icon"
+            />
+          </a>
           <Avatar url={profile?.avatar_url} label={session.user.email} />
         </div>
       )}
