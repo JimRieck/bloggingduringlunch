@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
 import './TenantBlog.css'
 
@@ -80,7 +81,10 @@ export function TenantBlog({ slug }) {
             <article className="post-summary" key={post.slug}>
               <h2>{post.title}</h2>
               <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
-              <p>{post.content}</p>
+              <div
+                className="post-body"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
+              />
             </article>
           ))
         )}

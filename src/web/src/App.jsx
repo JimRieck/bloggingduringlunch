@@ -4,6 +4,8 @@ import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { Avatar } from './components/Avatar.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
+import { CreatePostForm } from './components/CreatePostForm.jsx'
+import { MyPosts } from './components/MyPosts.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
@@ -34,6 +36,7 @@ function App() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [ownedOrg, setOwnedOrg] = useState(null)
+  const [authorOrg, setAuthorOrg] = useState(undefined)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
@@ -68,12 +71,36 @@ function App() {
       .then(({ data }) => setOwnedOrg(data?.organizations ?? null))
   }, [session])
 
+  useEffect(() => {
+    if (!session) return
+    supabase
+      .from('memberships')
+      .select('organizations(id, name)')
+      .eq('user_id', session.user.id)
+      .in('role', ['owner', 'editor'])
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setAuthorOrg(data?.organizations ?? null))
+  }, [session])
+
   if (tenantSlug) {
     return <TenantBlog slug={tenantSlug} />
   }
 
   if (window.location.pathname === '/directory') {
     return <UserDirectory session={session} />
+  }
+
+  if (window.location.pathname === '/posts/new') {
+    if (!session) {
+      return (
+        <div id="directory-gate">
+          <p>Log in to create a post.</p>
+          <AuthPanel />
+        </div>
+      )
+    }
+    return <CreatePostForm session={session} onCreated={() => (window.location.href = '/')} />
   }
 
   if (passwordRecovery) {
@@ -139,17 +166,21 @@ function App() {
         <p className="tagline">Short posts, written on a lunch break.</p>
       </header>
 
-      <main id="posts">
-        {posts.map((post) => (
-          <article className="post-summary" key={post.slug}>
-            <h2>
-              <a href={`/posts/${post.slug}`}>{post.title}</a>
-            </h2>
-            <time dateTime={post.date}>{formatDate(post.date)}</time>
-            <p>{post.excerpt}</p>
-          </article>
-        ))}
-      </main>
+      {session && authorOrg ? (
+        <MyPosts organizationId={authorOrg.id} organizationName={authorOrg.name} />
+      ) : (
+        <main id="posts">
+          {posts.map((post) => (
+            <article className="post-summary" key={post.slug}>
+              <h2>
+                <a href={`/posts/${post.slug}`}>{post.title}</a>
+              </h2>
+              <time dateTime={post.date}>{formatDate(post.date)}</time>
+              <p>{post.excerpt}</p>
+            </article>
+          ))}
+        </main>
+      )}
 
       <footer id="site-footer">
         <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
@@ -161,6 +192,9 @@ function App() {
                 Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
               </span>
             )}
+            <a className="link" href="/posts/new">
+              New post
+            </a>
             <a className="link" href="/directory">
               User directory
             </a>

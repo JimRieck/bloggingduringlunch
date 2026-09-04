@@ -34,3 +34,52 @@
   gap: 8px;
   padding: 48px 32px;
 }
+
+.post-body p {
+  margin: 0 0 12px;
+}
+
+.post-body h2,
+.post-body h3 {
+  text-align: left;
+  margin: 20px 0 8px;
+}
+
+.post-body ul,
+.post-body ol {
+  margin: 0 0 12px;
+  padding-left: 24px;
+}
+
+.post-body blockquote {
+  margin: 0 0 12px;
+  padding-left: 16px;
+  border-left: 3px solid var(--border);
+  color: var(--text);
+}
+
+.post-body pre {
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0 0 12px;
+
+  code {
+    background: none;
+    padding: 0;
+    font-size: 14px;
+  }
+}
+
+.post-body code {
+  font-family: var(--mono);
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 15px;
+}
+
+.post-body a {
+  color: var(--accent);
+}
