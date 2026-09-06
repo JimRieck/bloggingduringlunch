@@ -40,9 +40,11 @@ async function copyToClipboard(text) {
   }
 }
 
-export function MyPosts({ organizationId, organizationName, organizationSlug }) {
+export function MyPosts({ organizationId, organizationName, organizationSlug, viewerRole }) {
   const [posts, setPosts] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
+  const [error, setError] = useState('')
+  const canDelete = viewerRole === 'owner' || viewerRole === 'admin'
 
   useEffect(() => {
     supabase
@@ -61,6 +63,39 @@ export function MyPosts({ organizationId, organizationName, organizationSlug }) 
     }
   }
 
+  async function handleUnpublish(post) {
+    setError('')
+    const { error: updateError } = await supabase
+      .from('posts')
+      .update({ status: 'draft', published_at: null })
+      .eq('id', post.id)
+    if (updateError) {
+      setError(updateError.message)
+      return
+    }
+    setPosts((current) =>
+      current.map((p) => (p.id === post.id ? { ...p, status: 'draft', published_at: null } : p)),
+    )
+  }
+
+  async function handleDelete(post) {
+    if (!window.confirm(`Delete "${post.title}"? This can’t be undone.`)) return
+    setError('')
+    const { error: deleteError, count } = await supabase
+      .from('posts')
+      .delete({ count: 'exact' })
+      .eq('id', post.id)
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    if (!count) {
+      setError('Only this blog’s owner can delete posts.')
+      return
+    }
+    setPosts((current) => current.filter((p) => p.id !== post.id))
+  }
+
   return (
     <main id="my-posts">
       <div className="my-posts-header">
@@ -69,6 +104,11 @@ export function MyPosts({ organizationId, organizationName, organizationSlug }) 
           Write a new post
         </a>
       </div>
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
       {posts === null ? (
         <p className="my-posts-status">Loading…</p>
       ) : posts.length === 0 ? (
@@ -119,7 +159,25 @@ export function MyPosts({ organizationId, organizationName, organizationSlug }) 
                     />
                   </button>
                   {copiedId === post.id && <span className="copy-feedback">Copied!</span>}
+                  <button
+                    type="button"
+                    className="icon-action"
+                    onClick={() => handleUnpublish(post)}
+                    title="Unpublish this post"
+                  >
+                    <img src="/icons/unpublish.svg" alt="Unpublish this post" />
+                  </button>
                 </>
+              )}
+              {canDelete && (
+                <button
+                  type="button"
+                  className="icon-action"
+                  onClick={() => handleDelete(post)}
+                  title="Delete this post"
+                >
+                  <img src="/icons/trash.svg" alt="Delete this post" />
+                </button>
               )}
             </div>
           </article>

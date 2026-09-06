@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { Avatar } from './Avatar.jsx'
+import { ProfileImageModal } from './ProfileImageModal.jsx'
 import './NavPane.css'
 
 function getStoredCollapsed() {
@@ -11,8 +12,9 @@ function getStoredCollapsed() {
   }
 }
 
-export function NavPane({ profile, displayName, email, ownedOrg }) {
+export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvatarUploaded }) {
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
+  const [showImageModal, setShowImageModal] = useState(false)
 
   function toggle() {
     const next = !collapsed
@@ -36,7 +38,14 @@ export function NavPane({ profile, displayName, email, ownedOrg }) {
       </button>
 
       <div id="nav-profile">
-        <Avatar url={profile?.avatar_url} label={displayName || email} />
+        <button
+          type="button"
+          id="nav-avatar-button"
+          onClick={() => setShowImageModal(true)}
+          title="Change profile photo"
+        >
+          <Avatar url={profile?.avatar_url} label={displayName || email} />
+        </button>
         {!collapsed && <span id="nav-author-name">{displayName || email}</span>}
       </div>
 
@@ -78,6 +87,16 @@ export function NavPane({ profile, displayName, email, ownedOrg }) {
         </span>
         {!collapsed && <span>Log out</span>}
       </button>
+
+      {showImageModal && (
+        <ProfileImageModal
+          userId={userId}
+          currentUrl={profile?.avatar_url}
+          label={displayName || email}
+          onUploaded={onAvatarUploaded}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
     </nav>
   )
 }

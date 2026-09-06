@@ -1,0 +1,63 @@
+.profile-image-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.profile-image-modal {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.profile-image-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.profile-image-preview {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+
+  .avatar {
+    width: 96px;
+    height: 96px;
+    font-size: 32px;
+  }
+}
+
+.profile-image-upload {
+  display: block;
+  font-size: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-h);
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+
+  input[type='file'] {
+    display: none;
+  }
+}

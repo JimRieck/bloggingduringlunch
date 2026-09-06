@@ -75,12 +75,12 @@ function App() {
     if (!session) return
     supabase
       .from('memberships')
-      .select('organizations(id, name, slug)')
+      .select('role, organizations(id, name, slug)')
       .eq('user_id', session.user.id)
       .in('role', ['owner', 'editor'])
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => setAuthorOrg(data?.organizations ?? null))
+      .then(({ data }) => setAuthorOrg(data ? { ...data.organizations, role: data.role } : null))
   }, [session])
 
   if (tenantSlug) {
@@ -156,6 +156,7 @@ function App() {
             organizationId={authorOrg.id}
             organizationName={authorOrg.name}
             organizationSlug={authorOrg.slug}
+            viewerRole={authorOrg.role}
           />
         ) : (
           <main id="posts">
@@ -186,7 +187,14 @@ function App() {
   if (session && !passwordRecovery) {
     return (
       <div id="app-shell">
-        <NavPane profile={profile} displayName={profile?.display_name} email={session.user.email} ownedOrg={ownedOrg} />
+        <NavPane
+          userId={session.user.id}
+          profile={profile}
+          displayName={profile?.display_name}
+          email={session.user.email}
+          ownedOrg={ownedOrg}
+          onAvatarUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
+        />
         <div id="app-content">{content}</div>
       </div>
     )

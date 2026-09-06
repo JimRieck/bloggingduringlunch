@@ -53,6 +53,21 @@
   width: 100%;
 }
 
+#nav-avatar-button {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+  flex-shrink: 0;
+
+  &:hover {
+    outline: 2px solid var(--accent-border);
+    outline-offset: 2px;
+  }
+}
+
 #nav-author-name {
   font-size: 14px;
   font-weight: 500;
