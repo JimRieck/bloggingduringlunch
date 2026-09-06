@@ -47,8 +47,8 @@ export function ProfileImageModal({ userId, currentUrl, label, onUploaded, onClo
       <div className="profile-image-modal" onClick={(e) => e.stopPropagation()}>
         <div className="profile-image-header">
           <h3>Profile photo</h3>
-          <button type="button" className="link" onClick={onClose}>
-            Close
+          <button type="button" className="profile-image-close" onClick={onClose} aria-label="Close" title="Close">
+            ✕
           </button>
         </div>
         <div className="profile-image-preview">
