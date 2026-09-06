@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
 import { supabase } from '../lib/supabaseClient.js'
-import './CreatePostForm.css'
+import { ImagePicker } from './ImagePicker.jsx'
+import './PostForm.css'
 
 const TOOLBAR_BUTTONS = [
   { label: 'Bold', title: 'Bold', command: (chain) => chain.toggleBold(), active: 'bold' },
@@ -29,7 +31,7 @@ const TOOLBAR_BUTTONS = [
   { label: '{ }', title: 'Code block', command: (chain) => chain.toggleCodeBlock(), active: 'codeBlock' },
 ]
 
-function EditorToolbar({ editor }) {
+function EditorToolbar({ editor, onInsertImage }) {
   const activeState = useEditorState({
     editor,
     selector: ({ editor }) =>
@@ -70,32 +72,61 @@ function EditorToolbar({ editor }) {
       <button type="button" title="Link" onMouseDown={(e) => e.preventDefault()} onClick={setLink}>
         Link
       </button>
+      <button type="button" title="Image" onMouseDown={(e) => e.preventDefault()} onClick={onInsertImage}>
+        Image
+      </button>
     </div>
   )
 }
 
-export function CreatePostForm({ session, onCreated }) {
+export function PostForm({ session, postId, onSaved }) {
   const [membership, setMembership] = useState(undefined)
+  const [post, setPost] = useState(undefined)
+  const [loadedIntoEditor, setLoadedIntoEditor] = useState(false)
   const [title, setTitle] = useState('')
+  const [thumbnailUrl, setThumbnailUrl] = useState(null)
+  const [pickerTarget, setPickerTarget] = useState(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false })],
+    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image],
     content: '',
   })
 
   useEffect(() => {
+    if (postId) return
     supabase
       .from('memberships')
-      .select('role, organizations(id, name, slug)')
+      .select('role, organizations(id, name)')
       .eq('user_id', session.user.id)
       .in('role', ['owner', 'editor'])
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setMembership(data ?? null))
-  }, [session.user.id])
+  }, [session.user.id, postId])
+
+  useEffect(() => {
+    if (!postId) return
+    supabase
+      .from('posts')
+      .select('id, title, content, status, author_id, published_at, thumbnail_url, organization_id, organizations(name)')
+      .eq('id', postId)
+      .single()
+      .then(({ data }) => setPost(data ?? null))
+  }, [postId])
+
+  useEffect(() => {
+    if (!postId || !post || !editor || loadedIntoEditor) return
+    setTitle(post.title)
+    setThumbnailUrl(post.thumbnail_url)
+    editor.commands.setContent(post.content)
+    setLoadedIntoEditor(true)
+  }, [post, editor, postId, loadedIntoEditor])
+
+  const organizationId = postId ? post?.organization_id : membership?.organizations?.id
+  const organizationName = postId ? post?.organizations?.name : membership?.organizations?.name
 
   async function handleSave(status) {
     if (!title.trim()) {
@@ -109,36 +140,50 @@ export function CreatePostForm({ session, onCreated }) {
     setError('')
     setSaving(true)
 
-    const { data, error: insertError } = await supabase
+    const payload = {
+      organization_id: organizationId,
+      author_id: postId ? post.author_id : session.user.id,
+      title: title.trim(),
+      content: editor.getHTML(),
+      status,
+      thumbnail_url: thumbnailUrl,
+      published_at: status === 'published' ? (post?.published_at ?? new Date().toISOString()) : null,
+    }
+    if (postId) payload.id = postId
+
+    const { data, error: saveError } = await supabase
       .from('posts')
-      .insert({
-        organization_id: membership.organizations.id,
-        author_id: session.user.id,
-        title: title.trim(),
-        content: editor.getHTML(),
-        status,
-        published_at: status === 'published' ? new Date().toISOString() : null,
-      })
-      .select('slug')
+      .upsert(payload)
+      .select('id, slug')
       .single()
 
     setSaving(false)
-    if (insertError) {
-      setError(insertError.message)
+    if (saveError) {
+      setError(saveError.message)
       return
     }
 
-    setTitle('')
-    editor.commands.clearContent()
     setNotice(status === 'published' ? 'Post published.' : 'Draft saved.')
-    onCreated?.(data)
+    onSaved?.(data)
   }
 
-  if (membership === undefined) {
+  function handleImageSelected(url) {
+    if (pickerTarget === 'thumbnail') {
+      setThumbnailUrl(url)
+    } else if (pickerTarget === 'inline') {
+      editor.chain().focus().setImage({ src: url }).run()
+    }
+    setPickerTarget(null)
+  }
+
+  if (postId) {
+    if (post === undefined) return <p className="post-form-status">Loading…</p>
+    if (post === null) {
+      return <p className="post-form-status">That post doesn&rsquo;t exist, or you don&rsquo;t have access to it.</p>
+    }
+  } else if (membership === undefined) {
     return <p className="post-form-status">Loading…</p>
-  }
-
-  if (membership === null) {
+  } else if (membership === null) {
     return (
       <p className="post-form-status">
         You need to be an author on a blog to create posts. Register as an author, or use an
@@ -149,7 +194,9 @@ export function CreatePostForm({ session, onCreated }) {
 
   return (
     <div id="create-post">
-      <h2>New post — {membership.organizations.name}</h2>
+      <h2>
+        {postId ? 'Edit post' : 'New post'} — {organizationName}
+      </h2>
       <label className="field">
         <span>Title</span>
         <input
@@ -160,9 +207,23 @@ export function CreatePostForm({ session, onCreated }) {
         />
       </label>
       <div className="field">
+        <span>Thumbnail (optional)</span>
+        {thumbnailUrl && <img src={thumbnailUrl} alt="" className="thumbnail-preview" />}
+        <div className="thumbnail-actions">
+          <button type="button" className="link" onClick={() => setPickerTarget('thumbnail')}>
+            {thumbnailUrl ? 'Change image' : 'Choose image'}
+          </button>
+          {thumbnailUrl && (
+            <button type="button" className="link" onClick={() => setThumbnailUrl(null)}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="field">
         <span>Body</span>
         <div className="editor-shell">
-          <EditorToolbar editor={editor} />
+          <EditorToolbar editor={editor} onInsertImage={() => setPickerTarget('inline')} />
           <EditorContent editor={editor} className="editor-content" />
         </div>
       </div>
@@ -184,6 +245,14 @@ export function CreatePostForm({ session, onCreated }) {
           Publish
         </button>
       </div>
+      {pickerTarget && (
+        <ImagePicker
+          organizationId={organizationId}
+          userId={session.user.id}
+          onSelect={handleImageSelected}
+          onClose={() => setPickerTarget(null)}
+        />
+      )}
     </div>
   )
 }

@@ -43,3 +43,23 @@
   color: var(--text);
   background: var(--code-bg);
 }
+
+.my-post {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.my-post-thumbnail {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#my-posts .my-post time {
+  display: inline-block;
+  margin-right: 16px;
+}

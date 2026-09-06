@@ -16,7 +16,7 @@ export function MyPosts({ organizationId, organizationName }) {
   useEffect(() => {
     supabase
       .from('posts')
-      .select('id, title, status, published_at, created_at')
+      .select('id, title, status, published_at, created_at, thumbnail_url')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .then(({ data }) => setPosts(data ?? []))
@@ -42,14 +42,22 @@ export function MyPosts({ organizationId, organizationName }) {
         </p>
       ) : (
         posts.map((post) => (
-          <article className="post-summary" key={post.id}>
-            <h2>
-              {post.title}
-              <span className={`status-badge status-${post.status}`}>{post.status}</span>
-            </h2>
-            <time dateTime={post.published_at ?? post.created_at}>
-              {formatDate(post.published_at ?? post.created_at)}
-            </time>
+          <article className="post-summary my-post" key={post.id}>
+            {post.thumbnail_url && (
+              <img src={post.thumbnail_url} alt="" className="my-post-thumbnail" />
+            )}
+            <div>
+              <h2>
+                {post.title}
+                <span className={`status-badge status-${post.status}`}>{post.status}</span>
+              </h2>
+              <time dateTime={post.published_at ?? post.created_at}>
+                {formatDate(post.published_at ?? post.created_at)}
+              </time>
+              <a className="link" href={`/posts/edit?id=${post.id}`}>
+                Edit
+              </a>
+            </div>
           </article>
         ))
       )}

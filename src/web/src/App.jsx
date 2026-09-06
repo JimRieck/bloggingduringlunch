@@ -4,7 +4,7 @@ import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { Avatar } from './components/Avatar.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
-import { CreatePostForm } from './components/CreatePostForm.jsx'
+import { PostForm } from './components/PostForm.jsx'
 import { MyPosts } from './components/MyPosts.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
@@ -91,7 +91,7 @@ function App() {
     return <UserDirectory session={session} />
   }
 
-  if (window.location.pathname === '/posts/new') {
+  if (window.location.pathname === '/posts/new' || window.location.pathname === '/posts/edit') {
     if (!session) {
       return (
         <div id="directory-gate">
@@ -100,7 +100,8 @@ function App() {
         </div>
       )
     }
-    return <CreatePostForm session={session} onCreated={() => (window.location.href = '/')} />
+    const postId = new URLSearchParams(window.location.search).get('id') || undefined
+    return <PostForm session={session} postId={postId} onSaved={() => (window.location.href = '/')} />
   }
 
   if (passwordRecovery) {

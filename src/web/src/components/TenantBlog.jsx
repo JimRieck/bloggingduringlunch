@@ -35,7 +35,7 @@ export function TenantBlog({ slug }) {
 
       const { data: orgPosts } = await supabase
         .from('posts')
-        .select('title, slug, content, published_at')
+        .select('title, slug, content, published_at, thumbnail_url')
         .eq('organization_id', org.id)
         .eq('status', 'published')
         .order('published_at', { ascending: false })
@@ -79,6 +79,9 @@ export function TenantBlog({ slug }) {
         ) : (
           posts.map((post) => (
             <article className="post-summary" key={post.slug}>
+              {post.thumbnail_url && (
+                <img src={post.thumbnail_url} alt="" className="post-thumbnail" />
+              )}
               <h2>{post.title}</h2>
               <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
               <div
