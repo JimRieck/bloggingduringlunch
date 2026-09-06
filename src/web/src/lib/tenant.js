@@ -22,13 +22,13 @@ export function getTenantSlugFromHostname(hostname = window.location.hostname) {
 }
 
 // Builds the public URL for a tenant's blog (optionally deep-linked to a
-// specific post via its slug), using whichever base domain and port the
-// app is currently running on -- so this produces the right link in both
-// local dev ("*.localhost:5173") and production ("*.bloggingduringlunch.com").
+// specific post via its slug). Uses the path-based "/blog/<slug>" route
+// rather than "<slug>.bloggingduringlunch.com" -- the subdomain form is
+// what tenant routing actually uses, but wildcard subdomains aren't
+// enabled in production yet (blocked on Vercel's free tier), so a link
+// built that way looks right but doesn't resolve. The path form works
+// everywhere today with no DNS changes needed.
 export function getTenantUrl(slug, postSlug) {
-  const { protocol, hostname, port } = window.location
-  const base = BASE_DOMAINS.find((b) => hostname === b || hostname === `www.${b}`) ?? BASE_DOMAINS[0]
-  const portSuffix = port ? `:${port}` : ''
   const hash = postSlug ? `#${postSlug}` : ''
-  return `${protocol}//${slug}.${base}${portSuffix}/${hash}`
+  return `${window.location.origin}/blog/${slug}${hash}`
 }

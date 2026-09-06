@@ -89,6 +89,10 @@ function App() {
 
   const pathname = window.location.pathname
 
+  if (pathname.startsWith('/blog/')) {
+    return <TenantBlog slug={pathname.slice('/blog/'.length)} />
+  }
+
   let content
   if (pathname === '/directory') {
     content = <UserDirectory session={session} />
