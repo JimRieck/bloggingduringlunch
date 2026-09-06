@@ -63,3 +63,36 @@
   display: inline-block;
   margin-right: 16px;
 }
+
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  vertical-align: middle;
+
+  &:hover {
+    background: var(--accent-bg);
+  }
+
+  img {
+    width: 15px;
+    height: 15px;
+
+    @media (prefers-color-scheme: dark) {
+      filter: invert(1);
+    }
+  }
+}
+
+.copy-feedback {
+  font-size: 13px;
+  color: var(--accent);
+}

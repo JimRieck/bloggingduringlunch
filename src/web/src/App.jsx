@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
-import { Avatar } from './components/Avatar.jsx'
+import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
 import { MyPosts } from './components/MyPosts.jsx'
@@ -54,7 +54,7 @@ function App() {
     if (!session) return
     supabase
       .from('profiles')
-      .select('avatar_url, profile_setup_dismissed')
+      .select('display_name, avatar_url, profile_setup_dismissed')
       .eq('id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data))
@@ -75,7 +75,7 @@ function App() {
     if (!session) return
     supabase
       .from('memberships')
-      .select('organizations(id, name)')
+      .select('organizations(id, name, slug)')
       .eq('user_id', session.user.id)
       .in('role', ['owner', 'editor'])
       .limit(1)
@@ -87,29 +87,27 @@ function App() {
     return <TenantBlog slug={tenantSlug} />
   }
 
-  if (window.location.pathname === '/directory') {
-    return <UserDirectory session={session} />
-  }
+  const pathname = window.location.pathname
 
-  if (window.location.pathname === '/posts/new' || window.location.pathname === '/posts/edit') {
+  let content
+  if (pathname === '/directory') {
+    content = <UserDirectory session={session} />
+  } else if (pathname === '/posts/new' || pathname === '/posts/edit') {
     if (!session) {
-      return (
+      content = (
         <div id="directory-gate">
           <p>Log in to create a post.</p>
           <AuthPanel />
         </div>
       )
+    } else {
+      const postId = new URLSearchParams(window.location.search).get('id') || undefined
+      content = <PostForm session={session} postId={postId} onSaved={() => (window.location.href = '/')} />
     }
-    const postId = new URLSearchParams(window.location.search).get('id') || undefined
-    return <PostForm session={session} postId={postId} onSaved={() => (window.location.href = '/')} />
-  }
-
-  if (passwordRecovery) {
-    return <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
-  }
-
-  if (showLogin && !session) {
-    return (
+  } else if (passwordRecovery) {
+    content = <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
+  } else if (showLogin && !session) {
+    content = (
       <div id="landing">
         <section id="pitch">
           <h1>Blogging During Lunch</h1>
@@ -134,83 +132,63 @@ function App() {
         </section>
       </div>
     )
+  } else {
+    content = (
+      <>
+        {session && profile && !profile.avatar_url && !profile.profile_setup_dismissed && (
+          <ProfileSetupBanner
+            userId={session.user.id}
+            onUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
+            onDismissed={() => setProfile((p) => ({ ...p, profile_setup_dismissed: true }))}
+          />
+        )}
+        <header id="site-header">
+          <h1>Blogging During Lunch</h1>
+          <p className="tagline">Short posts, written on a lunch break.</p>
+        </header>
+
+        {session && authorOrg ? (
+          <MyPosts
+            organizationId={authorOrg.id}
+            organizationName={authorOrg.name}
+            organizationSlug={authorOrg.slug}
+          />
+        ) : (
+          <main id="posts">
+            {posts.map((post) => (
+              <article className="post-summary" key={post.slug}>
+                <h2>
+                  <a href={`/posts/${post.slug}`}>{post.title}</a>
+                </h2>
+                <time dateTime={post.date}>{formatDate(post.date)}</time>
+                <p>{post.excerpt}</p>
+              </article>
+            ))}
+          </main>
+        )}
+
+        <footer id="site-footer">
+          <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
+          {!session && (
+            <button type="button" className="link" onClick={() => setShowLogin(true)}>
+              Admin login
+            </button>
+          )}
+        </footer>
+      </>
+    )
   }
 
-  return (
-    <>
-      {session && (
-        <div id="user-bar">
-          <a
-            href="/directory"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open user directory in a new tab"
-          >
-            <img
-              src="/icons/external-link.svg"
-              alt="Open user directory in a new tab"
-              className="new-tab-icon"
-            />
-          </a>
-          <Avatar url={profile?.avatar_url} label={session.user.email} />
-        </div>
-      )}
-      {session && profile && !profile.avatar_url && !profile.profile_setup_dismissed && (
-        <ProfileSetupBanner
-          userId={session.user.id}
-          onUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
-          onDismissed={() => setProfile((p) => ({ ...p, profile_setup_dismissed: true }))}
-        />
-      )}
-      <header id="site-header">
-        <h1>Blogging During Lunch</h1>
-        <p className="tagline">Short posts, written on a lunch break.</p>
-      </header>
+  if (session && !passwordRecovery) {
+    return (
+      <div id="app-shell">
+        <NavPane profile={profile} displayName={profile?.display_name} email={session.user.email} ownedOrg={ownedOrg} />
+        <div id="app-content">{content}</div>
+      </div>
+    )
+  }
 
-      {session && authorOrg ? (
-        <MyPosts organizationId={authorOrg.id} organizationName={authorOrg.name} />
-      ) : (
-        <main id="posts">
-          {posts.map((post) => (
-            <article className="post-summary" key={post.slug}>
-              <h2>
-                <a href={`/posts/${post.slug}`}>{post.title}</a>
-              </h2>
-              <time dateTime={post.date}>{formatDate(post.date)}</time>
-              <p>{post.excerpt}</p>
-            </article>
-          ))}
-        </main>
-      )}
-
-      <footer id="site-footer">
-        <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
-        {session ? (
-          <>
-            <span className="session-email">{session.user.email}</span>
-            {ownedOrg && (
-              <span className="invite-code">
-                Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
-              </span>
-            )}
-            <a className="link" href="/posts/new">
-              New post
-            </a>
-            <a className="link" href="/directory">
-              User directory
-            </a>
-            <button type="button" className="link" onClick={() => supabase.auth.signOut()}>
-              Log out
-            </button>
-          </>
-        ) : (
-          <button type="button" className="link" onClick={() => setShowLogin(true)}>
-            Admin login
-          </button>
-        )}
-      </footer>
-    </>
-  )
+  return content
 }
 
 export default App

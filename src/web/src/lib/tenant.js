@@ -20,3 +20,15 @@ export function getTenantSlugFromHostname(hostname = window.location.hostname) {
   }
   return null
 }
+
+// Builds the public URL for a tenant's blog (optionally deep-linked to a
+// specific post via its slug), using whichever base domain and port the
+// app is currently running on -- so this produces the right link in both
+// local dev ("*.localhost:5173") and production ("*.bloggingduringlunch.com").
+export function getTenantUrl(slug, postSlug) {
+  const { protocol, hostname, port } = window.location
+  const base = BASE_DOMAINS.find((b) => hostname === b || hostname === `www.${b}`) ?? BASE_DOMAINS[0]
+  const portSuffix = port ? `:${port}` : ''
+  const hash = postSlug ? `#${postSlug}` : ''
+  return `${protocol}//${slug}.${base}${portSuffix}/${hash}`
+}

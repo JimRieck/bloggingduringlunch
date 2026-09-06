@@ -78,7 +78,7 @@ export function TenantBlog({ slug }) {
           <p className="tenant-empty">No posts published yet.</p>
         ) : (
           posts.map((post) => (
-            <article className="post-summary" key={post.slug}>
+            <article className="post-summary" id={post.slug} key={post.slug}>
               {post.thumbnail_url && (
                 <img src={post.thumbnail_url} alt="" className="post-thumbnail" />
               )}
