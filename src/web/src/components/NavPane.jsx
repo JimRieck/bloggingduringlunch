@@ -56,6 +56,12 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvata
           </span>
           {!collapsed && <span>My posts</span>}
         </a>
+        <a href="/search" title="Search">
+          <span className="nav-icon" aria-hidden="true">
+            🔍
+          </span>
+          {!collapsed && <span>Search</span>}
+        </a>
         <a href="/posts/new" title="New post">
           <span className="nav-icon" aria-hidden="true">
             ➕

@@ -6,6 +6,7 @@ import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
 import { MyPosts } from './components/MyPosts.jsx'
+import { Search } from './components/Search.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
@@ -96,6 +97,17 @@ function App() {
   let content
   if (pathname === '/directory') {
     content = <UserDirectory session={session} />
+  } else if (pathname === '/search') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to search.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else {
+      content = <Search />
+    }
   } else if (pathname === '/posts/new' || pathname === '/posts/edit') {
     if (!session) {
       content = (
