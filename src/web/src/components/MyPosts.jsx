@@ -42,6 +42,7 @@ async function copyToClipboard(text) {
 
 export function MyPosts({ organizationId, organizationName, organizationSlug, viewerRole }) {
   const [posts, setPosts] = useState(null)
+  const [stats, setStats] = useState({})
   const [copiedId, setCopiedId] = useState(null)
   const [error, setError] = useState('')
   const canDelete = viewerRole === 'owner' || viewerRole === 'admin'
@@ -54,6 +55,39 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
       .order('created_at', { ascending: false })
       .then(({ data }) => setPosts(data ?? []))
   }, [organizationId])
+
+  useEffect(() => {
+    if (!posts || posts.length === 0) return
+    const postIds = posts.map((p) => p.id)
+
+    // post_views/post_comments have no public count endpoint -- fetch the
+    // rows and tally client-side. post_rating_summary is already an
+    // aggregate view, so that one comes back pre-counted.
+    Promise.all([
+      supabase.from('post_views').select('post_id').in('post_id', postIds),
+      supabase.from('post_rating_summary').select('post_id, average_rating, rating_count').in('post_id', postIds),
+      supabase.from('post_comments').select('post_id').in('post_id', postIds),
+    ]).then(([{ data: views }, { data: ratings }, { data: comments }]) => {
+      const viewCounts = new Map()
+      for (const v of views ?? []) viewCounts.set(v.post_id, (viewCounts.get(v.post_id) ?? 0) + 1)
+
+      const commentCounts = new Map()
+      for (const c of comments ?? []) commentCounts.set(c.post_id, (commentCounts.get(c.post_id) ?? 0) + 1)
+
+      const ratingByPost = new Map((ratings ?? []).map((r) => [r.post_id, r]))
+
+      const next = {}
+      for (const id of postIds) {
+        next[id] = {
+          views: viewCounts.get(id) ?? 0,
+          commentCount: commentCounts.get(id) ?? 0,
+          averageRating: ratingByPost.get(id)?.average_rating ?? null,
+          ratingCount: ratingByPost.get(id)?.rating_count ?? 0,
+        }
+      }
+      setStats(next)
+    })
+  }, [posts])
 
   async function handleCopyLink(post) {
     const ok = await copyToClipboard(getTenantUrl(organizationSlug, post.slug))
@@ -133,6 +167,17 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
               <time dateTime={post.published_at ?? post.created_at}>
                 {formatDate(post.published_at ?? post.created_at)}
               </time>
+              {post.status === 'published' && (
+                <p className="post-stats">
+                  {stats[post.id]?.views ?? 0} view{stats[post.id]?.views === 1 ? '' : 's'}
+                  {' · '}
+                  {stats[post.id]?.ratingCount
+                    ? `${stats[post.id].averageRating} ★ (${stats[post.id].ratingCount})`
+                    : 'No ratings yet'}
+                  {' · '}
+                  {stats[post.id]?.commentCount ?? 0} comment{stats[post.id]?.commentCount === 1 ? '' : 's'}
+                </p>
+              )}
               <a className="icon-action" href={`/posts/edit?id=${post.id}`} title="Edit this post">
                 <img src="/icons/edit.svg" alt="Edit this post" />
               </a>

@@ -70,12 +70,12 @@ function App() {
 
   if (tenantSlug) {
     const postSlug = pathname.slice(1) || undefined
-    return <TenantBlog slug={tenantSlug} postSlug={postSlug} />
+    return <TenantBlog slug={tenantSlug} postSlug={postSlug} session={session} />
   }
 
   if (pathname.startsWith('/blog/')) {
     const [orgSlug, postSlug] = pathname.slice('/blog/'.length).split('/')
-    return <TenantBlog slug={orgSlug} postSlug={postSlug || undefined} />
+    return <TenantBlog slug={orgSlug} postSlug={postSlug || undefined} session={session} />
   }
 
   let content

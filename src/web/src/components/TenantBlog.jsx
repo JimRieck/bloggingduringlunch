@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
+import { StarRating } from './StarRating.jsx'
+import { CommentSection } from './CommentSection.jsx'
 import './TenantBlog.css'
 
 function formatDate(iso) {
@@ -11,7 +13,7 @@ function formatDate(iso) {
   })
 }
 
-export function TenantBlog({ slug, postSlug }) {
+export function TenantBlog({ slug, postSlug, session }) {
   const [status, setStatus] = useState('loading')
   const [organization, setOrganization] = useState(null)
   const [posts, setPosts] = useState([])
@@ -37,7 +39,7 @@ export function TenantBlog({ slug, postSlug }) {
       if (postSlug) {
         const { data: onePost } = await supabase
           .from('posts')
-          .select('title, slug, content, published_at, thumbnail_url')
+          .select('id, title, slug, content, published_at, thumbnail_url')
           .eq('organization_id', org.id)
           .eq('slug', postSlug)
           .eq('status', 'published')
@@ -50,6 +52,10 @@ export function TenantBlog({ slug, postSlug }) {
         }
         setPost(onePost)
         setStatus('ready')
+        // supabase-js query builders are lazy thenables -- the request
+        // never fires unless awaited/then'd, even for a fire-and-forget
+        // insert like this one.
+        await supabase.from('post_views').insert({ post_id: onePost.id, referrer: document.referrer || null })
         return
       }
 
@@ -116,6 +122,8 @@ export function TenantBlog({ slug, postSlug }) {
               className="post-body"
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
             />
+            <StarRating postId={post.id} session={session} />
+            <CommentSection postId={post.id} session={session} />
           </article>
           <a className="link" href={`/blog/${slug}`}>
             ← All posts from {organization.name}

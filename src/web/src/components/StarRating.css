@@ -1,0 +1,33 @@
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.star-rating-stars {
+  display: flex;
+}
+
+.star-rating-stars button {
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--border);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.filled {
+    color: var(--accent);
+  }
+}
+
+.star-rating-summary {
+  font-size: 14px;
+  color: var(--text);
+}
