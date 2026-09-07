@@ -12,12 +12,6 @@ function formatDate(iso) {
   })
 }
 
-function excerpt(html, max = 200) {
-  const text = (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-  if (text.length <= max) return text
-  return `${text.slice(0, max - 1).trimEnd()}…`
-}
-
 export function RecentPosts() {
   const [posts, setPosts] = useState(null)
 
@@ -27,7 +21,7 @@ export function RecentPosts() {
     async function load() {
       const { data: postRows } = await supabase
         .from('posts')
-        .select('id, title, slug, content, published_at, thumbnail_url, organization_id')
+        .select('id, title, slug, published_at, thumbnail_url, organization_id')
         .eq('status', 'published')
         .order('published_at', { ascending: false })
         .limit(POST_LIMIT)
@@ -77,14 +71,13 @@ export function RecentPosts() {
       {posts.map((post) => (
         <article className="post-summary" key={post.id}>
           {post.thumbnail_url && <img src={post.thumbnail_url} alt="" className="post-thumbnail" />}
-          <h2>
-            <a href={`/blog/${post.organization.slug}/${post.slug}`}>{post.title}</a>
-          </h2>
           <div className="recent-post-meta">
             <span>{post.organization.name}</span>
             <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
           </div>
-          <p>{excerpt(post.content)}</p>
+          <h2>
+            <a href={`/blog/${post.organization.slug}/${post.slug}`}>{post.title}</a>
+          </h2>
         </article>
       ))}
     </main>
