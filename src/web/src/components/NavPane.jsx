@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { Avatar } from './Avatar.jsx'
 import { ProfileImageModal } from './ProfileImageModal.jsx'
+import { InviteMemberModal } from './InviteMemberModal.jsx'
 import './NavPane.css'
 
 function getStoredCollapsed() {
@@ -16,6 +17,7 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvata
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const showLabels = !collapsed || mobileOpen
 
   function toggle() {
@@ -109,9 +111,14 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvata
         </div>
 
         {ownedOrg && showLabels && (
-          <p id="nav-invite-code">
-            Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
-          </p>
+          <div id="nav-invite">
+            <p id="nav-invite-code">
+              Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
+            </p>
+            <button type="button" id="nav-invite-email" onClick={() => setShowInviteModal(true)}>
+              Invite by email
+            </button>
+          </div>
         )}
 
         <button type="button" id="nav-logout" onClick={() => supabase.auth.signOut()} title="Log out">
@@ -131,6 +138,8 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvata
           onClose={() => setShowImageModal(false)}
         />
       )}
+
+      {showInviteModal && <InviteMemberModal onClose={() => setShowInviteModal(false)} />}
     </>
   )
 }

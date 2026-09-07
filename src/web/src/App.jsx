@@ -29,6 +29,14 @@ function App() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+      // supabase-js has no distinct INVITE event -- an admin-generated
+      // invite link fires plain SIGNED_IN, so a `?invited=1` marker on
+      // the invite email's redirectTo is how we detect "this login
+      // needs to set a password," same as a real recovery link.
+      if (event === 'SIGNED_IN' && new URLSearchParams(window.location.search).get('invited') === '1') {
+        setPasswordRecovery(true)
+        window.history.replaceState({}, '', window.location.pathname)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])

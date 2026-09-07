@@ -126,6 +126,12 @@
   }
 }
 
+#nav-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 #nav-invite-code {
   font-size: 12px;
   color: var(--text);
@@ -134,6 +140,23 @@
   code {
     font-size: 12px;
     padding: 2px 6px;
+  }
+}
+
+#nav-invite-email {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--accent);
   }
 }
 
