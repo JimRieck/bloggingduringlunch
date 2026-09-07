@@ -8,27 +8,47 @@ import { ImagePicker } from './ImagePicker.jsx'
 import './PostForm.css'
 
 const TOOLBAR_BUTTONS = [
-  { label: 'Bold', title: 'Bold', command: (chain) => chain.toggleBold(), active: 'bold' },
-  { label: 'Italic', title: 'Italic', command: (chain) => chain.toggleItalic(), active: 'italic' },
-  { label: 'Code', title: 'Inline code', command: (chain) => chain.toggleCode(), active: 'code' },
+  { title: 'Bold', icon: '/icons/bold.svg', command: (chain) => chain.toggleBold(), active: 'bold' },
+  { title: 'Italic', icon: '/icons/italic.svg', command: (chain) => chain.toggleItalic(), active: 'italic' },
+  { title: 'Inline code', icon: '/icons/inline-code.svg', command: (chain) => chain.toggleCode(), active: 'code' },
   {
-    label: 'H2',
     title: 'Heading',
+    icon: '/icons/heading-2.svg',
     command: (chain) => chain.toggleHeading({ level: 2 }),
     active: 'heading',
     activeAttrs: { level: 2 },
   },
   {
-    label: 'H3',
     title: 'Subheading',
+    icon: '/icons/heading-3.svg',
     command: (chain) => chain.toggleHeading({ level: 3 }),
     active: 'heading',
     activeAttrs: { level: 3 },
   },
-  { label: 'List', title: 'Bullet list', command: (chain) => chain.toggleBulletList(), active: 'bulletList' },
-  { label: '1. List', title: 'Numbered list', command: (chain) => chain.toggleOrderedList(), active: 'orderedList' },
-  { label: 'Quote', title: 'Blockquote', command: (chain) => chain.toggleBlockquote(), active: 'blockquote' },
-  { label: '{ }', title: 'Code block', command: (chain) => chain.toggleCodeBlock(), active: 'codeBlock' },
+  {
+    title: 'Bullet list',
+    icon: '/icons/bullet-list.svg',
+    command: (chain) => chain.toggleBulletList(),
+    active: 'bulletList',
+  },
+  {
+    title: 'Numbered list',
+    icon: '/icons/numbered-list.svg',
+    command: (chain) => chain.toggleOrderedList(),
+    active: 'orderedList',
+  },
+  {
+    title: 'Blockquote',
+    icon: '/icons/blockquote.svg',
+    command: (chain) => chain.toggleBlockquote(),
+    active: 'blockquote',
+  },
+  {
+    title: 'Code block',
+    icon: '/icons/code-block.svg',
+    command: (chain) => chain.toggleCodeBlock(),
+    active: 'codeBlock',
+  },
 ]
 
 function EditorToolbar({ editor, onInsertImage }) {
@@ -37,7 +57,7 @@ function EditorToolbar({ editor, onInsertImage }) {
     selector: ({ editor }) =>
       editor
         ? Object.fromEntries(
-            TOOLBAR_BUTTONS.map((b) => [b.label, editor.isActive(b.active, b.activeAttrs)]),
+            TOOLBAR_BUTTONS.map((b) => [b.title, editor.isActive(b.active, b.activeAttrs)]),
           )
         : {},
   })
@@ -59,21 +79,21 @@ function EditorToolbar({ editor, onInsertImage }) {
     <div className="editor-toolbar">
       {TOOLBAR_BUTTONS.map((b) => (
         <button
-          key={b.label}
+          key={b.title}
           type="button"
-          className={activeState[b.label] ? 'active' : ''}
+          className={activeState[b.title] ? 'active' : ''}
           title={b.title}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => b.command(editor.chain().focus()).run()}
         >
-          {b.label}
+          <img src={b.icon} alt={b.title} />
         </button>
       ))}
       <button type="button" title="Link" onMouseDown={(e) => e.preventDefault()} onClick={setLink}>
-        Link
+        <img src="/icons/copy-link.svg" alt="Link" />
       </button>
       <button type="button" title="Image" onMouseDown={(e) => e.preventDefault()} onClick={onInsertImage}>
-        Image
+        <img src="/icons/image.svg" alt="Image" />
       </button>
     </div>
   )
