@@ -78,8 +78,12 @@ export default async function handler(req, res) {
       return
     }
 
+    // Build the canonical URL from the known clean parts rather than
+    // req.url -- inside the function, req.url reflects the rewrite's
+    // internal routing (e.g. "...?org=bdl&post=working-from-home"), not
+    // the public-facing path visitors and crawlers actually see.
     const proto = req.headers['x-forwarded-proto'] || 'https'
-    const pageUrl = `${proto}://${req.headers.host}${req.url}`
+    const pageUrl = `${proto}://${req.headers.host}/blog/${encodeURIComponent(orgSlug)}/${encodeURIComponent(postSlug)}`
     const title = escapeHtml(post.title)
     const description = escapeHtml(excerpt(post.content))
     const image = post.thumbnail_url ? escapeHtml(post.thumbnail_url) : null
