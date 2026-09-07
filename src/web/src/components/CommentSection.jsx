@@ -112,7 +112,12 @@ export function CommentSection({ postId, session }) {
           </button>
         </form>
       ) : (
-        <p className="comments-status">Log in to leave a comment.</p>
+        <p className="comments-status">
+          <a className="link" href="/">
+            Log in or register
+          </a>{' '}
+          to leave a comment.
+        </p>
       )}
     </section>
   )
