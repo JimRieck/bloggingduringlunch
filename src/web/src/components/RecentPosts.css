@@ -1,0 +1,38 @@
+#recent-posts {
+  flex-grow: 1;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  text-align: left;
+}
+
+.recent-posts-status {
+  color: var(--text);
+}
+
+#recent-posts .post-thumbnail {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+#recent-posts .recent-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+
+  time {
+    display: inline;
+  }
+
+  span::after {
+    content: '·';
+    margin-left: 8px;
+  }
+}

@@ -6,30 +6,12 @@ import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
 import { MyPosts } from './components/MyPosts.jsx'
+import { RecentPosts } from './components/RecentPosts.jsx'
 import { Search } from './components/Search.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
 import { getTenantSlugFromHostname } from './lib/tenant.js'
-
-const posts = [
-  {
-    slug: 'hello-world',
-    title: 'Hello, world',
-    date: '2026-08-31',
-    excerpt:
-      'First post. This is where the lunch-break writing starts — short posts, no pressure to be polished.',
-  },
-]
-
-function formatDate(iso) {
-  const [year, month, day] = iso.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
 
 function App() {
   const tenantSlug = getTenantSlugFromHostname()
@@ -173,17 +155,7 @@ function App() {
             viewerRole={authorOrg.role}
           />
         ) : (
-          <main id="posts">
-            {posts.map((post) => (
-              <article className="post-summary" key={post.slug}>
-                <h2>
-                  <a href={`/posts/${post.slug}`}>{post.title}</a>
-                </h2>
-                <time dateTime={post.date}>{formatDate(post.date)}</time>
-                <p>{post.excerpt}</p>
-              </article>
-            ))}
-          </main>
+          <RecentPosts />
         )}
 
         <footer id="site-footer">
