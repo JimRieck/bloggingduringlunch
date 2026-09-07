@@ -35,6 +35,19 @@
   padding: 48px 32px;
 }
 
+#tenant-posts h2 a {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+#tenant-posts > a.link {
+  align-self: flex-start;
+}
+
 .post-thumbnail {
   display: block;
   width: 100%;

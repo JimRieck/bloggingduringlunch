@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/blog/:org/:post", "destination": "/api/og?org=:org&post=:post" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

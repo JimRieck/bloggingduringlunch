@@ -84,14 +84,16 @@ function App() {
       .then(({ data }) => setAuthorOrg(data ? { ...data.organizations, role: data.role } : null))
   }, [session])
 
-  if (tenantSlug) {
-    return <TenantBlog slug={tenantSlug} />
-  }
-
   const pathname = window.location.pathname
 
+  if (tenantSlug) {
+    const postSlug = pathname.slice(1) || undefined
+    return <TenantBlog slug={tenantSlug} postSlug={postSlug} />
+  }
+
   if (pathname.startsWith('/blog/')) {
-    return <TenantBlog slug={pathname.slice('/blog/'.length)} />
+    const [orgSlug, postSlug] = pathname.slice('/blog/'.length).split('/')
+    return <TenantBlog slug={orgSlug} postSlug={postSlug || undefined} />
   }
 
   let content
