@@ -108,17 +108,20 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvata
               </>
             )}
           </a>
+          {ownedOrg && (
+            <button type="button" onClick={() => setShowInviteModal(true)} title="Invite by email">
+              <span className="nav-icon" aria-hidden="true">
+                ✉️
+              </span>
+              {showLabels && <span>Invite by email</span>}
+            </button>
+          )}
         </div>
 
         {ownedOrg && showLabels && (
-          <div id="nav-invite">
-            <p id="nav-invite-code">
-              Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
-            </p>
-            <button type="button" id="nav-invite-email" onClick={() => setShowInviteModal(true)}>
-              Invite by email
-            </button>
-          </div>
+          <p id="nav-invite-code">
+            Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
+          </p>
         )}
 
         <button type="button" id="nav-logout" onClick={() => supabase.auth.signOut()} title="Log out">
