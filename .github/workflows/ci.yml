@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - name: Lint
+        working-directory: src/web
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.116.0
+
+      # Fresh Postgres + every migration in supabase/migrations, same as
+      # local dev's `npx supabase start` followed by `db reset` -- every
+      # CI run gets a brand-new runner, so there's no existing volume
+      # for `start` to restore from, but `db reset` makes the "apply
+      # every migration cleanly" step explicit rather than assumed.
+      - name: Start local Supabase
+        run: |
+          supabase start
+          supabase db reset
+
+      # These are the Supabase CLI's fixed, publicly documented local
+      # dev keys (same for every local install using the default
+      # config.toml JWT settings, and already written in plain text in
+      # src/web/.env.test.example) -- not secrets, only ever valid
+      # against the ephemeral local stack this job just started and
+      # tears down when it ends.
+      - name: Run integration tests
+        working-directory: src/web
+        env:
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+        run: npm test
