@@ -31,17 +31,31 @@ export function Search() {
         supabase.from('organizations_public').select('id, name, slug').ilike('name', like).limit(RESULT_LIMIT),
         supabase
           .from('posts')
-          .select('id, title, slug, published_at, organizations(name, slug)')
+          .select('id, title, slug, published_at, organization_id')
           .eq('status', 'published')
           .ilike('title', like)
           .order('published_at', { ascending: false })
           .limit(RESULT_LIMIT),
       ])
       if (cancelled) return
+
+      // Posts can't embed `organizations` directly -- that table's RLS
+      // only allows a member to see their own org, so a post whose
+      // author is in a different org than the searcher would silently
+      // come back with organizations: null and crash the render.
+      // organizations_public has no such restriction; join client-side.
+      const postRows = posts.data ?? []
+      const orgIds = [...new Set(postRows.map((p) => p.organization_id))]
+      const { data: postOrgs } = orgIds.length
+        ? await supabase.from('organizations_public').select('id, name, slug').in('id', orgIds)
+        : { data: [] }
+      const orgById = new Map((postOrgs ?? []).map((o) => [o.id, o]))
+
+      if (cancelled) return
       setResults({
         authors: authors.data ?? [],
         orgs: orgs.data ?? [],
-        posts: posts.data ?? [],
+        posts: postRows.map((p) => ({ ...p, organization: orgById.get(p.organization_id) })),
       })
     }, 300)
 
@@ -104,20 +118,22 @@ export function Search() {
       {results && results.posts.length > 0 && (
         <section className="search-section">
           <h3>Posts</h3>
-          {results.posts.map((post) => (
-            <a
-              className="search-result"
-              href={getTenantUrl(post.organizations.slug, post.slug)}
-              target="_blank"
-              rel="noopener noreferrer"
-              key={post.id}
-            >
-              <div>
-                <div className="search-result-title">{post.title}</div>
-                <div className="search-result-meta">{post.organizations.name}</div>
-              </div>
-            </a>
-          ))}
+          {results.posts.map((post) =>
+            post.organization ? (
+              <a
+                className="search-result"
+                href={getTenantUrl(post.organization.slug, post.slug)}
+                target="_blank"
+                rel="noopener noreferrer"
+                key={post.id}
+              >
+                <div>
+                  <div className="search-result-title">{post.title}</div>
+                  <div className="search-result-meta">{post.organization.name}</div>
+                </div>
+              </a>
+            ) : null,
+          )}
         </section>
       )}
     </main>

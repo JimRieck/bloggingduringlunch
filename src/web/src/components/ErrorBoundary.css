@@ -1,0 +1,30 @@
+#error-boundary {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+#error-boundary p {
+  color: var(--text);
+  max-width: 360px;
+}
+
+#error-boundary button {
+  font: inherit;
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  color: var(--accent);
+  background: var(--accent-bg);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+}
