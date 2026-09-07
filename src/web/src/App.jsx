@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import { AdminPanel } from './components/AdminPanel.jsx'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { NavPane } from './components/NavPane.jsx'
@@ -20,7 +21,9 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [ownedOrg, setOwnedOrg] = useState(null)
   const [authorOrg, setAuthorOrg] = useState(undefined)
+  const [isSiteAdmin, setIsSiteAdmin] = useState(false)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [disabledNotice, setDisabledNotice] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -45,10 +48,32 @@ function App() {
     if (!session) return
     supabase
       .from('profiles')
-      .select('display_name, avatar_url, profile_setup_dismissed')
+      .select('display_name, avatar_url, profile_setup_dismissed, disabled')
       .eq('id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data))
+  }, [session])
+
+  useEffect(() => {
+    // Auth-level bans (see AdminPanel.jsx) block new logins/refreshes
+    // immediately but don't revoke an already-issued access token, so
+    // an already-open session could otherwise keep working for up to
+    // an hour. This closes that gap client-side as soon as we notice.
+    if (profile?.disabled) {
+      setDisabledNotice(true)
+      setShowLogin(true)
+      supabase.auth.signOut()
+    }
+  }, [profile])
+
+  useEffect(() => {
+    if (!session) return
+    supabase
+      .from('profiles')
+      .select('is_site_admin')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => setIsSiteAdmin(data?.is_site_admin ?? false))
   }, [session])
 
   useEffect(() => {
@@ -89,6 +114,23 @@ function App() {
   let content
   if (pathname === '/directory') {
     content = <UserDirectory session={session} />
+  } else if (pathname === '/admin') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to access site admin.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else if (!isSiteAdmin) {
+      content = (
+        <div id="directory-gate">
+          <p>You don&rsquo;t have access to this page.</p>
+        </div>
+      )
+    } else {
+      content = <AdminPanel session={session} />
+    }
   } else if (pathname === '/search') {
     if (!session) {
       content = (
@@ -136,6 +178,11 @@ function App() {
           </button>
         </section>
         <section id="auth-panel">
+          {disabledNotice && (
+            <p className="auth-notice" role="status">
+              Your account has been disabled.
+            </p>
+          )}
           <AuthPanel />
         </section>
       </div>
@@ -187,6 +234,7 @@ function App() {
           displayName={profile?.display_name}
           email={session.user.email}
           ownedOrg={ownedOrg}
+          isSiteAdmin={isSiteAdmin}
           onAvatarUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
         />
         <div id="app-content">{content}</div>

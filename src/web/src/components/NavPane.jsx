@@ -13,7 +13,7 @@ function getStoredCollapsed() {
   }
 }
 
-export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvatarUploaded }) {
+export function NavPane({ userId, profile, displayName, email, ownedOrg, isSiteAdmin, onAvatarUploaded }) {
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
@@ -115,6 +115,14 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, onAvata
               </span>
               {showLabels && <span>Invite by email</span>}
             </button>
+          )}
+          {isSiteAdmin && (
+            <a href="/admin" title="Site admin">
+              <span className="nav-icon" aria-hidden="true">
+                🛡️
+              </span>
+              {showLabels && <span>Site admin</span>}
+            </a>
           )}
         </div>
 
