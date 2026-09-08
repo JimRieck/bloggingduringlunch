@@ -134,17 +134,6 @@
   }
 }
 
-#nav-invite-code {
-  font-size: 12px;
-  color: var(--text);
-  margin: 0;
-
-  code {
-    font-size: 12px;
-    padding: 2px 6px;
-  }
-}
-
 #nav-logout {
   margin-top: auto;
   display: flex;

@@ -80,11 +80,11 @@ function App() {
     if (!session) return
     supabase
       .from('memberships')
-      .select('organizations(name, invite_code)')
+      .select('organization_id')
       .eq('user_id', session.user.id)
       .eq('role', 'owner')
       .maybeSingle()
-      .then(({ data }) => setOwnedOrg(data?.organizations ?? null))
+      .then(({ data }) => setOwnedOrg(data?.organization_id ?? null))
   }, [session])
 
   useEffect(() => {

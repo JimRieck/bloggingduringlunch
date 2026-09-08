@@ -126,12 +126,6 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, isSiteA
           )}
         </div>
 
-        {ownedOrg && showLabels && (
-          <p id="nav-invite-code">
-            Invite code for {ownedOrg.name}: <code>{ownedOrg.invite_code}</code>
-          </p>
-        )}
-
         <button type="button" id="nav-logout" onClick={() => supabase.auth.signOut()} title="Log out">
           <span className="nav-icon" aria-hidden="true">
             🚪
