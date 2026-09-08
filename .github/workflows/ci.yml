@@ -83,12 +83,13 @@ jobs:
   # always takes longer since it waits on tests first.
   deploy:
     needs: [lint, test]
-    # The secrets check makes this skip cleanly (not fail loudly) until
-    # the five repository secrets below actually exist -- it starts
-    # working on its own the moment they're added, no other change needed.
-    if: >
-      github.ref == 'refs/heads/main' && github.event_name == 'push' &&
-      secrets.SUPABASE_ACCESS_TOKEN != ''
+    # `secrets` isn't allowed in a job-level `if:` (the whole workflow
+    # fails to parse if you try -- learned that the hard way), so this
+    # job WILL show as failed on every push to main until the five
+    # secrets below actually exist. That's expected: ignore the red X
+    # on "deploy" specifically until the one-time setup is done: lint
+    # and test are unaffected either way.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
