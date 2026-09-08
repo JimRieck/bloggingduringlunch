@@ -7,7 +7,9 @@
 // is open to everyone, writing requires login, and re-rating a post
 // updates the existing row instead of erroring -- the exact upsert
 // onConflict bug caught in manual testing before this ever shipped,
-// now pinned down so it can't silently come back.
+// now pinned down so it can't silently come back. Also covers
+// 20260908203258_exclude_author_from_post_views.sql: a post's own
+// author can't inflate its view count.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData, createTestClient } from '../helpers/testClients.js'
 
@@ -89,6 +91,16 @@ describe('post engagement: views, ratings, comments', () => {
     it('anyone, even signed out, can record a view on a published post', async () => {
       const anonClient = createTestClient()
       const { error } = await anonClient.from('post_views').insert({ post_id: postId, referrer: null })
+      expect(error).toBeNull()
+    })
+
+    it("does not let the post's own author record a view on it", async () => {
+      const { error } = await authorClient.from('post_views').insert({ post_id: postId, referrer: null })
+      expect(error).toBeTruthy()
+    })
+
+    it('still counts a view from a different logged-in reader on the same post', async () => {
+      const { error } = await readerClient.from('post_views').insert({ post_id: postId, referrer: null })
       expect(error).toBeNull()
     })
 

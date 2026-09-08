@@ -39,7 +39,7 @@ export function TenantBlog({ slug, postSlug, session }) {
       if (postSlug) {
         const { data: onePost } = await supabase
           .from('posts')
-          .select('id, title, slug, content, published_at, thumbnail_url')
+          .select('id, title, slug, content, published_at, thumbnail_url, author_id')
           .eq('organization_id', org.id)
           .eq('slug', postSlug)
           .eq('status', 'published')
@@ -52,10 +52,26 @@ export function TenantBlog({ slug, postSlug, session }) {
         }
         setPost(onePost)
         setStatus('ready')
-        // supabase-js query builders are lazy thenables -- the request
-        // never fires unless awaited/then'd, even for a fire-and-forget
-        // insert like this one.
-        await supabase.from('post_views').insert({ post_id: onePost.id, referrer: document.referrer || null })
+        // Don't count the author's own visits -- RLS also enforces this
+        // (see 20260908203258_exclude_author_from_post_views.sql), this
+        // just skips the doomed request. Deliberately re-checks the
+        // live session here instead of trusting the `session` prop:
+        // App.jsx's own session fetch is async and starts out null on
+        // first paint, so on a fresh page load (as opposed to
+        // client-side nav from an already-logged-in state) the prop
+        // can still be stale by the time this effect runs, which
+        // let a real author's view request through and rely on RLS to
+        // reject it rather than skipping it client-side as intended.
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession()
+        if (cancelled) return
+        if (currentSession?.user?.id !== onePost.author_id) {
+          // supabase-js query builders are lazy thenables -- the request
+          // never fires unless awaited/then'd, even for a fire-and-forget
+          // insert like this one.
+          await supabase.from('post_views').insert({ post_id: onePost.id, referrer: document.referrer || null })
+        }
         return
       }
 
