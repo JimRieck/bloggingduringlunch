@@ -1,0 +1,122 @@
+#my-stats {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: left;
+}
+
+#my-stats h2 {
+  margin: 0 0 16px;
+}
+
+.my-stats-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.my-stats-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.my-stats-field input,
+.my-stats-field select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  box-sizing: border-box;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.my-stats-field select {
+  min-width: 200px;
+}
+
+.my-stats-total {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.views-line-chart {
+  position: relative;
+}
+
+.views-line-chart svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--text);
+  font-size: 11px;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-marker {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.chart-marker-hover {
+  r: 6;
+}
+
+.chart-crosshair {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-h);
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+
+  strong {
+    font-size: 14px;
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text);
+  }
+}

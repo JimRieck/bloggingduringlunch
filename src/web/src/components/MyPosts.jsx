@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { getTenantUrl } from '../lib/tenant.js'
+import { MyStats } from './MyStats.jsx'
 import './MyPosts.css'
 
 function formatDate(iso) {
@@ -138,6 +139,7 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
           Write a new post
         </a>
       </div>
+      <MyStats posts={posts} />
       {error && (
         <p className="field-error" role="alert">
           {error}
