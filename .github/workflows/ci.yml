@@ -71,3 +71,62 @@ jobs:
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
           SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
         run: npm test
+
+  # Only runs on an actual push to main (never a PR, never another
+  # branch) and only after lint+test both pass -- deliberately
+  # sequential end to end: hosted Supabase schema/functions before the
+  # frontend that expects them, matching the ordering this project
+  # followed by hand for every deploy so far. Vercel's own GitHub
+  # git-integration auto-deploy must be turned off for this to actually
+  # hold (see the Deployment & ops entry in ROADMAP.md) -- otherwise
+  # Vercel's push-triggered deploy races ahead of this job, which
+  # always takes longer since it waits on tests first.
+  deploy:
+    needs: [lint, test]
+    # The secrets check makes this skip cleanly (not fail loudly) until
+    # the five repository secrets below actually exist -- it starts
+    # working on its own the moment they're added, no other change needed.
+    if: >
+      github.ref == 'refs/heads/main' && github.event_name == 'push' &&
+      secrets.SUPABASE_ACCESS_TOKEN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.116.0
+
+      - name: Deploy Supabase migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase link --project-ref bcgvmvfndwubqfrxqopa
+          supabase db push
+
+      - name: Deploy Supabase Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --project-ref bcgvmvfndwubqfrxqopa
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Root Directory is set to src/web on the Vercel project itself
+      # (pulled down by `vercel pull`), so these run from there, same
+      # as vercel.json already living in src/web.
+      - name: Deploy to Vercel (production)
+        working-directory: src/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          vercel build --prod --token=$VERCEL_TOKEN
+          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
