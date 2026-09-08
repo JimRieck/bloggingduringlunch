@@ -120,11 +120,13 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # Root Directory is set to src/web on the Vercel project itself
-      # (pulled down by `vercel pull`), so these run from there, same
-      # as vercel.json already living in src/web.
+      # Deliberately run from the repo root, NOT src/web: the Vercel
+      # project's own Root Directory setting is already "src/web" (set
+      # in its dashboard), and `vercel pull` downloads that setting.
+      # Running these commands from inside src/web too would apply it
+      # twice, producing src/web/src/web -- confirmed by a real failed
+      # run: "the provided path .../src/web/src/web does not exist".
       - name: Deploy to Vercel (production)
-        working-directory: src/web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
