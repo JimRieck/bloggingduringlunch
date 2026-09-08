@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { ViewsLineChart } from './ViewsLineChart.jsx'
+import { PostsPieChart } from './PostsPieChart.jsx'
 import './UserDirectory.css'
 import './MyStats.css'
 
@@ -162,24 +163,7 @@ export function MyStats({ posts }) {
       ) : publishedPosts.length === 0 ? (
         <p className="directory-status">Publish a post to start seeing stats.</p>
       ) : selectedPostId === 'all' ? (
-        <div className="directory-table-wrap">
-          <table className="directory-table">
-            <thead>
-              <tr>
-                <th>Post</th>
-                <th>Views</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byPost.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.title}</td>
-                  <td>{p.views}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <PostsPieChart data={byPost} />
       ) : (
         <>
           <p className="my-stats-total">
