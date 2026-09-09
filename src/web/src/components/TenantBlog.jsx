@@ -104,6 +104,9 @@ export function TenantBlog({ slug, postSlug, session }) {
   if (status === 'not-found') {
     return (
       <div id="tenant-blog" className="tenant-status">
+        <a className="tenant-home-link" href="/">
+          ← Blogging During Lunch
+        </a>
         <h1>Blog not found</h1>
         <p>There&rsquo;s no blog at this address.</p>
       </div>
@@ -113,6 +116,9 @@ export function TenantBlog({ slug, postSlug, session }) {
   if (status === 'post-not-found') {
     return (
       <div id="tenant-blog" className="tenant-status">
+        <a className="tenant-home-link" href="/">
+          ← Blogging During Lunch
+        </a>
         <h1>Post not found</h1>
         <p>
           There&rsquo;s no post at this address. <a href={`/blog/${slug}`}>View {organization.name}&rsquo;s blog →</a>
@@ -125,6 +131,9 @@ export function TenantBlog({ slug, postSlug, session }) {
     return (
       <div id="tenant-blog">
         <header id="tenant-header">
+          <a className="tenant-home-link" href="/">
+            ← Blogging During Lunch
+          </a>
           <h1>{organization.name}</h1>
         </header>
         <main id="tenant-posts">
@@ -152,6 +161,9 @@ export function TenantBlog({ slug, postSlug, session }) {
   return (
     <div id="tenant-blog">
       <header id="tenant-header">
+        <a className="tenant-home-link" href="/">
+          ← Blogging During Lunch
+        </a>
         <h1>{organization.name}</h1>
       </header>
       <main id="tenant-posts">

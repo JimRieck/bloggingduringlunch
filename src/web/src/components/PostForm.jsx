@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import { supabase } from '../lib/supabaseClient.js'
+import { Callout } from '../lib/CalloutExtension.js'
 import { ImagePicker } from './ImagePicker.jsx'
 import './PostForm.css'
 
@@ -42,6 +43,12 @@ const TOOLBAR_BUTTONS = [
     icon: '/icons/blockquote.svg',
     command: (chain) => chain.toggleBlockquote(),
     active: 'blockquote',
+  },
+  {
+    title: 'Callout',
+    icon: '/icons/callout.svg',
+    command: (chain) => chain.toggleCallout(),
+    active: 'callout',
   },
   {
     title: 'Code block',
@@ -111,7 +118,7 @@ export function PostForm({ session, postId, onSaved }) {
   const [saving, setSaving] = useState(false)
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image],
+    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout],
     content: '',
   })
 

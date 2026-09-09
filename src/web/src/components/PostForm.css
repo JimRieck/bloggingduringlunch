@@ -83,6 +83,7 @@
 .editor-content {
   padding: 16px;
   min-height: 260px;
+  font-family: var(--post-body);
 
   .tiptap {
     outline: none;
@@ -98,6 +99,19 @@
   .tiptap h3 {
     text-align: left;
     margin: 20px 0 8px;
+    font-family: var(--post-heading);
+  }
+
+  .tiptap .callout {
+    margin: 0 0 12px;
+    padding: 14px 16px;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-bg);
+    border-radius: 4px;
+
+    > *:last-child {
+      margin-bottom: 0;
+    }
   }
 
   .tiptap ul,
@@ -128,7 +142,7 @@
   }
 
   .tiptap code {
-    font-family: var(--mono);
+    font-family: var(--post-mono);
     background: var(--code-bg);
     border-radius: 4px;
     padding: 2px 6px;

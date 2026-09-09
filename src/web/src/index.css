@@ -26,6 +26,12 @@
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
+  /* Post-content-only typography (editor + published view), not the
+     app's own chrome -- see PostForm.css/TenantBlog.css. */
+  --post-heading: 'Fraunces', Georgia, serif;
+  --post-body: 'Public Sans', var(--sans);
+  --post-mono: 'JetBrains Mono', var(--mono);
+
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
