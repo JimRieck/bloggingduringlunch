@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import './RecentPosts.css'
 
 const POST_LIMIT = 20
+const WINDOW_DAYS = 90
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -19,10 +20,12 @@ export function RecentPosts() {
     let cancelled = false
 
     async function load() {
+      const windowStart = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
       const { data: postRows } = await supabase
         .from('posts')
         .select('id, title, slug, published_at, thumbnail_url, organization_id')
         .eq('status', 'published')
+        .gte('published_at', windowStart)
         .order('published_at', { ascending: false })
         .limit(POST_LIMIT)
 

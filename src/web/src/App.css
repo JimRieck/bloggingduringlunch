@@ -35,30 +35,36 @@
 #landing {
   flex-grow: 1;
   display: flex;
-  align-items: center;
-  gap: 64px;
-  padding: 48px 32px;
+  align-items: flex-start;
+  gap: 48px;
+  padding: 32px;
   text-align: left;
 
   @media (max-width: 1024px) {
     flex-direction: column;
     align-items: stretch;
     gap: 40px;
-    padding: 32px 20px;
+    padding: 20px;
   }
 }
 
-#pitch {
+#landing-feed {
   flex: 1 1 0;
+  min-width: 0;
+}
 
-  h1,
-  .tagline {
-    text-align: left;
-  }
+#landing-feed #recent-posts {
+  padding: 0;
+}
+
+#pitch-strip {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
 }
 
 .pitch-copy {
-  margin: 24px 0;
+  margin: 0 0 16px;
   color: var(--text);
 }
 
@@ -79,21 +85,6 @@
     content: '✓';
     position: absolute;
     left: 0;
-    color: var(--accent);
-  }
-}
-
-#pitch button.link {
-  font: inherit;
-  font-size: 15px;
-  color: var(--text);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-
-  &:hover {
     color: var(--accent);
   }
 }

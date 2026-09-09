@@ -16,7 +16,6 @@ import { getTenantSlugFromHostname } from './lib/tenant.js'
 
 function App() {
   const tenantSlug = getTenantSlugFromHostname()
-  const [showLogin, setShowLogin] = useState(true)
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [ownedOrg, setOwnedOrg] = useState(null)
@@ -61,7 +60,6 @@ function App() {
     // an hour. This closes that gap client-side as soon as we notice.
     if (profile?.disabled) {
       setDisabledNotice(true)
-      setShowLogin(true)
       supabase.auth.signOut()
     }
   }, [profile])
@@ -156,41 +154,48 @@ function App() {
     }
   } else if (passwordRecovery) {
     content = <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
-  } else if (showLogin && !session) {
+  } else if (!session) {
     content = (
-      <div id="landing">
-        <section id="pitch">
+      <>
+        <header id="site-header">
           <h1>Blogging During Lunch</h1>
           <p className="tagline">Short posts, written on a lunch break.</p>
-          <p className="pitch-copy">
-            A free technical blogging platform built for professional software
-            engineers. Write about what you shipped, what broke, and what you
-            learned — no CMS to wrestle with, no paywall, no ads. Just your
-            writing.
-          </p>
-          <ul className="pitch-points">
-            <li>Free for individual engineers, no catches</li>
-            <li>Built for technical writing — code blocks and all</li>
-            <li>Publish in minutes and own what you write</li>
-          </ul>
-          <button type="button" className="link" onClick={() => setShowLogin(false)}>
-            Prefer to just read? View the blog →
-          </button>
-        </section>
-        <section id="auth-panel">
-          {disabledNotice && (
-            <p className="auth-notice" role="status">
-              Your account has been disabled.
-            </p>
-          )}
-          <AuthPanel />
-        </section>
-      </div>
+        </header>
+        <div id="landing">
+          <section id="landing-feed">
+            <RecentPosts />
+          </section>
+          <section id="auth-panel">
+            <div id="pitch-strip">
+              <p className="pitch-copy">
+                A free technical blogging platform built for professional software
+                engineers. Write about what you shipped, what broke, and what you
+                learned — no CMS to wrestle with, no paywall, no ads. Just your
+                writing.
+              </p>
+              <ul className="pitch-points">
+                <li>Free for individual engineers, no catches</li>
+                <li>Built for technical writing — code blocks and all</li>
+                <li>Publish in minutes and own what you write</li>
+              </ul>
+            </div>
+            {disabledNotice && (
+              <p className="auth-notice" role="status">
+                Your account has been disabled.
+              </p>
+            )}
+            <AuthPanel />
+          </section>
+        </div>
+        <footer id="site-footer">
+          <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
+        </footer>
+      </>
     )
   } else {
     content = (
       <>
-        {session && profile && !profile.avatar_url && !profile.profile_setup_dismissed && (
+        {profile && !profile.avatar_url && !profile.profile_setup_dismissed && (
           <ProfileSetupBanner
             userId={session.user.id}
             onUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
@@ -202,7 +207,7 @@ function App() {
           <p className="tagline">Short posts, written on a lunch break.</p>
         </header>
 
-        {session && authorOrg ? (
+        {authorOrg ? (
           <MyPosts
             organizationId={authorOrg.id}
             organizationName={authorOrg.name}
@@ -215,11 +220,6 @@ function App() {
 
         <footer id="site-footer">
           <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
-          {!session && (
-            <button type="button" className="link" onClick={() => setShowLogin(true)}>
-              Admin login
-            </button>
-          )}
         </footer>
       </>
     )
