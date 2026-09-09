@@ -6,8 +6,11 @@
 // reader, author creating a new org, and author joining an existing
 // org via invite code -- verifying not just the resulting DB rows but
 // that RLS actually grants (or denies) the access each path implies.
+// Also covers the email-confirmation gate itself (enable_confirmations
+// in supabase/config.toml, matching production): an account isn't
+// active until its confirmation link is used.
 import { afterAll, describe, expect, it } from 'vitest'
-import { cleanupTestData, createTestClient } from '../helpers/testClients.js'
+import { cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -24,7 +27,10 @@ async function signUp(client, email, data) {
   })
   if (error) throw error
   createdUserIds.push(result.user.id)
-  return result
+  // signUp() no longer returns a session directly (enable_confirmations
+  // is on) -- this completes the same confirmation-email flow a real
+  // user's click does, via the real email Supabase sent to Mailpit.
+  return confirmSignup(client, email)
 }
 
 describe('signup: all account types', () => {
@@ -160,5 +166,39 @@ describe('signup: all account types', () => {
     })
     expect(error).toBeNull()
     expect(lookup).toEqual([])
+  })
+
+  it("a new account can't log in until its confirmation email is used", async () => {
+    const client = createTestClient()
+    const email = emailFor('unconfirmed')
+
+    const { data: signUpResult, error: signUpError } = await client.auth.signUp({
+      email,
+      password: PASSWORD,
+      options: { data: { username: 'unconfirmed-' + runId, user_type: 'reader' } },
+    })
+    expect(signUpError).toBeNull()
+    createdUserIds.push(signUpResult.user.id)
+
+    // The core of this project's answer to "is an account active
+    // before it's verified": signUp() itself returns no session...
+    expect(signUpResult.session).toBeNull()
+
+    // ...and a real login attempt is rejected, not just "no session
+    // from signup" -- confirming the gate is enforced at auth time,
+    // not merely absent from one response.
+    const loginAttempt = createTestClient()
+    const { error: loginError } = await loginAttempt.auth.signInWithPassword({ email, password: PASSWORD })
+    expect(loginError).toBeTruthy()
+    expect(loginError.code ?? loginError.message).toMatch(/confirm/i)
+
+    // Using the real confirmation link Supabase sent (via Mailpit)
+    // is what actually activates it.
+    const { session } = await confirmSignup(client, email)
+    expect(session).toBeTruthy()
+
+    const secondLoginAttempt = createTestClient()
+    const { error: secondLoginError } = await secondLoginAttempt.auth.signInWithPassword({ email, password: PASSWORD })
+    expect(secondLoginError).toBeNull()
   })
 })

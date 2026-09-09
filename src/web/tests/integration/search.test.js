@@ -8,7 +8,7 @@
 // can find published content at all, and that a draft never leaks
 // into results just because its title matches.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cleanupTestData, createTestClient } from '../helpers/testClients.js'
+import { cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -25,7 +25,10 @@ async function signUp(client, email, data) {
   })
   if (error) throw error
   createdUserIds.push(result.user.id)
-  return result
+  // signUp() no longer returns a session directly (enable_confirmations
+  // is on) -- this completes the same confirmation-email flow a real
+  // user's click does, via the real email Supabase sent to Mailpit.
+  return confirmSignup(client, email)
 }
 
 describe('search: authors, blogs, and posts', () => {

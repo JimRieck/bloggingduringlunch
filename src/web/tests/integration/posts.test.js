@@ -11,7 +11,7 @@
 // own comment already documents: a plain editor (not owner/admin)
 // can't delete someone else's post even if the button were clicked.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -28,7 +28,10 @@ async function signUp(client, email, data) {
   })
   if (error) throw error
   createdUserIds.push(result.user.id)
-  return result
+  // signUp() no longer returns a session directly (enable_confirmations
+  // is on) -- this completes the same confirmation-email flow a real
+  // user's click does, via the real email Supabase sent to Mailpit.
+  return confirmSignup(client, email)
 }
 
 describe('post lifecycle: create, publish, view, delete', () => {
