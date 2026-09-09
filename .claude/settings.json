@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git log)",
+      "Bash(git log *)",
+      "Bash(git branch)",
+      "Bash(git branch *)",
+      "Bash(git show *)",
+      "Bash(npm test)",
+      "Bash(npm test *)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint *)",
+      "Bash(npx supabase@2.116.0 start)",
+      "Bash(npx supabase@2.116.0 stop)",
+      "Bash(npx supabase@2.116.0 status)",
+      "Bash(npx supabase@2.116.0 db reset)"
+    ]
+  }
+}
