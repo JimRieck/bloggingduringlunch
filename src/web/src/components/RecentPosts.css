@@ -16,12 +16,35 @@
   color: var(--text);
 }
 
+#recent-posts .post-thumbnail-frame {
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  background: var(--accent-bg);
+}
+
 #recent-posts .post-thumbnail {
   display: block;
   width: 100%;
-  max-width: 480px;
-  border-radius: 4px;
-  margin-bottom: 12px;
+  height: 100%;
+  object-fit: cover;
+}
+
+#recent-posts .recent-post-byline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+#recent-posts .recent-post-byline .avatar {
+  width: 24px;
+  height: 24px;
 }
 
 #recent-posts .recent-post-meta {
@@ -30,7 +53,7 @@
   gap: 8px;
   font-size: 14px;
   color: var(--text);
-  margin-bottom: 8px;
+  margin-top: 4px;
 
   time {
     display: inline;
