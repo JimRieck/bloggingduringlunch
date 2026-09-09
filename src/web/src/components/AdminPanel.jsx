@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { SiteStats } from './SiteStats.jsx'
 import './UserDirectory.css'
 import './AdminPanel.css'
 
@@ -47,6 +48,7 @@ export function AdminPanel({ session }) {
   return (
     <div id="directory">
       <h1>Site admin</h1>
+      <SiteStats />
       {error && (
         <p className="field-error" role="alert">
           {error}

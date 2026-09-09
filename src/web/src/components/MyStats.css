@@ -121,6 +121,30 @@
   }
 }
 
+.bar-chart {
+  position: relative;
+}
+
+.bar-chart svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-bar {
+  fill: var(--accent);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.chart-bar-hover {
+  opacity: 0.8;
+}
+
 .posts-pie-chart {
   display: flex;
   align-items: center;
