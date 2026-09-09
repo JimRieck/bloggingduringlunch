@@ -1,0 +1,11 @@
+#site-stats {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+#site-stats h2 {
+  margin: 0 0 16px;
+}

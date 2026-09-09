@@ -9,7 +9,9 @@
 // disable themselves, disabling actually blocks login (banned_until),
 // and -- the bug caught and fixed right after this shipped -- a
 // disabled author's already-published posts disappear from public
-// queries but stay visible to their org.
+// queries but stay visible to their org. Also covers the RLS policy
+// from 20260909183450_site_admin_can_view_all_post_views.sql, added
+// for the admin page's site traffic chart.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { adminClient, cleanupTestData, createTestClient } from '../helpers/testClients.js'
 
@@ -121,6 +123,23 @@ describe('site admin: disable accounts', () => {
     const anonClient = createTestClient()
     const { data } = await anonClient.from('posts').select('id').eq('id', postId).maybeSingle()
     expect(data).toMatchObject({ id: postId })
+  })
+
+  it("a site admin can read post_views for a post outside their own org, for the site traffic chart", async () => {
+    const anonClient = createTestClient()
+    const { error: insertError } = await anonClient.from('post_views').insert({ post_id: postId, referrer: null })
+    expect(insertError).toBeNull()
+
+    // adminAuthClient isn't a member of targetOrgId -- without the new
+    // "Site admins can view all post views" policy this is exactly the
+    // "a stranger cannot read the raw view rows" case already covered
+    // for a non-admin in engagement.test.js.
+    const { data: asAdmin, error: adminError } = await adminAuthClient
+      .from('post_views')
+      .select('id')
+      .eq('post_id', postId)
+    expect(adminError).toBeNull()
+    expect(asAdmin.length).toBeGreaterThan(0)
   })
 
   it('an admin can disable another account', async () => {
