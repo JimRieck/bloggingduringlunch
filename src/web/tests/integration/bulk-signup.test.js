@@ -10,7 +10,7 @@
 // with the same name), not just in isolation with guaranteed-unique
 // names.
 import { afterAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const USER_COUNT = 100
@@ -75,6 +75,15 @@ async function signUpOne(index, joinableOrgs) {
     return { intent, email, error }
   }
   createdUserIds.push(data.user.id)
+
+  // signUp() no longer returns a session directly (enable_confirmations
+  // is on) -- this completes the same confirmation-email flow a real
+  // user's click does, via the real email Supabase sent to Mailpit.
+  try {
+    await confirmSignup(client, email)
+  } catch (confirmError) {
+    return { intent, email, error: confirmError }
+  }
 
   const { data: membership, error: membershipError } = await client
     .from('memberships')

@@ -6,6 +6,7 @@ config({ path: '.env.test.local' })
 const url = process.env.SUPABASE_URL
 const anonKey = process.env.SUPABASE_ANON_KEY
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const mailpitUrl = process.env.MAILPIT_URL || 'http://127.0.0.1:54324'
 
 if (!url || !anonKey || !serviceRoleKey) {
   throw new Error(
@@ -46,6 +47,39 @@ export const adminClient = createClient(url, serviceRoleKey, {
 // can't delete an org's sole owner without reassigning it first. This
 // logs a warning rather than silently swallowing it, but doesn't fail
 // the suite: it happens at most once per database, not per run.
+// enable_confirmations is on (matches production -- see
+// supabase/config.toml), so a fresh signUp() no longer returns a
+// session; a real user has to click the link in their confirmation
+// email first. This does the same thing a real user's click does --
+// reads the actual email Supabase sent to the local Mailpit inbox and
+// exchanges its token_hash for a session -- rather than bypassing the
+// gate for tests.
+async function findConfirmationTokenHash(email, { retries = 20, delayMs = 250 } = {}) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const searchRes = await fetch(`${mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)
+    const search = await searchRes.json()
+    if (search.messages?.length) {
+      const messageRes = await fetch(`${mailpitUrl}/api/v1/message/${search.messages[0].ID}`)
+      const message = await messageRes.json()
+      const match = message.Text.match(/token=([a-f0-9]+)&type=signup/)
+      if (match) return match[1]
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+  }
+  throw new Error(`No confirmation email found for ${email} after ${retries} attempts`)
+}
+
+// Completes signup on `client` (the same client that called signUp())
+// by verifying the token_hash from that user's real confirmation
+// email, and returns the resulting { user, session } -- the session
+// signUp() itself no longer provides directly.
+export async function confirmSignup(client, email) {
+  const tokenHash = await findConfirmationTokenHash(email)
+  const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: 'signup' })
+  if (error) throw error
+  return data
+}
+
 export async function cleanupTestData(orgIds, userIds) {
   for (const orgId of orgIds) {
     const { error } = await adminClient.from('organizations').delete().eq('id', orgId)

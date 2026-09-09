@@ -11,7 +11,7 @@
 // is rejected with a distinct error instead of a generic failure.
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -28,7 +28,10 @@ async function signUp(client, email, data) {
   })
   if (error) throw error
   createdUserIds.push(result.user.id)
-  return result
+  // signUp() no longer returns a session directly (enable_confirmations
+  // is on) -- this completes the same confirmation-email flow a real
+  // user's click does, via the real email Supabase sent to Mailpit.
+  return confirmSignup(client, email)
 }
 
 async function invokeInvite(client, body) {
