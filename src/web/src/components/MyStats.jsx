@@ -41,13 +41,12 @@ export function MyStats({ posts }) {
   const [dayRows, setDayRows] = useState(null)
   const [error, setError] = useState('')
 
-  // If the selected post gets unpublished/deleted out from under this
-  // filter, fall back to "All posts" instead of pointing at a post
-  // that's no longer a valid option.
-  useEffect(() => {
-    if (selectedPostId === 'all') return
-    if (!publishedPosts.some((p) => p.id === selectedPostId)) setSelectedPostId('all')
-  }, [publishedPosts, selectedPostId])
+  // Derived, not synced back into state via an effect: if the
+  // selected post gets unpublished/deleted out from under this
+  // filter, this falls back to "All posts" the instant `publishedPosts`
+  // changes, with no stale-selection render in between.
+  const effectiveSelectedPostId =
+    selectedPostId === 'all' || publishedPosts.some((p) => p.id === selectedPostId) ? selectedPostId : 'all'
 
   // Both RPCs group and sum in the database rather than fetching raw
   // post_views rows and summing them in the browser -- the previous
@@ -55,39 +54,46 @@ export function MyStats({ posts }) {
   // cap (a popular post over a wide range would silently undercount,
   // not error), same issue as the admin site traffic chart had.
   useEffect(() => {
-    if (publishedPostIds.length === 0) {
-      setPostRows([])
-      setDayRows([])
-      return
-    }
-    setError('')
+    if (publishedPostIds.length === 0) return
+    let cancelled = false
 
-    if (selectedPostId === 'all') {
-      setPostRows(null)
-      supabase
-        .rpc('my_post_views_by_post', { post_ids: publishedPostIds, start_date: range.start, end_date: range.end })
-        .then(({ data, error: rpcError }) => {
-          if (rpcError) {
-            setError(rpcError.message)
-            setPostRows([])
-            return
-          }
-          setPostRows(data ?? [])
+    async function load() {
+      if (effectiveSelectedPostId === 'all') {
+        const { data, error: rpcError } = await supabase.rpc('my_post_views_by_post', {
+          post_ids: publishedPostIds,
+          start_date: range.start,
+          end_date: range.end,
         })
-    } else {
-      setDayRows(null)
-      supabase
-        .rpc('my_post_views_by_day', { target_post_id: selectedPostId, start_date: range.start, end_date: range.end })
-        .then(({ data, error: rpcError }) => {
-          if (rpcError) {
-            setError(rpcError.message)
-            setDayRows([])
-            return
-          }
-          setDayRows(data ?? [])
+        if (cancelled) return
+        if (rpcError) {
+          setError(rpcError.message)
+          setPostRows([])
+          return
+        }
+        setError('')
+        setPostRows(data ?? [])
+      } else {
+        const { data, error: rpcError } = await supabase.rpc('my_post_views_by_day', {
+          target_post_id: effectiveSelectedPostId,
+          start_date: range.start,
+          end_date: range.end,
         })
+        if (cancelled) return
+        if (rpcError) {
+          setError(rpcError.message)
+          setDayRows([])
+          return
+        }
+        setError('')
+        setDayRows(data ?? [])
+      }
     }
-  }, [publishedPostIds, range, selectedPostId])
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [publishedPostIds, range, effectiveSelectedPostId])
 
   const postTitleById = useMemo(
     () => new Map(publishedPosts.map((p) => [p.id, p.title])),
@@ -107,7 +113,7 @@ export function MyStats({ posts }) {
   // Only ever displayed in the single-post branch below -- "All
   // posts" shows its own per-slice totals via PostsPieChart instead.
   const totalViews = (dayRows ?? []).reduce((sum, r) => sum + r.views, 0)
-  const loading = selectedPostId === 'all' ? postRows === null : dayRows === null
+  const loading = effectiveSelectedPostId === 'all' ? postRows === null : dayRows === null
   const today = useMemo(() => isoDateString(new Date()), [])
 
   function handleStartChange(e) {
@@ -135,7 +141,7 @@ export function MyStats({ posts }) {
         </label>
         <label className="my-stats-field">
           <span>Post</span>
-          <select value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
+          <select value={effectiveSelectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
             <option value="all">All posts</option>
             {publishedPosts.map((p) => (
               <option key={p.id} value={p.id}>
@@ -152,17 +158,19 @@ export function MyStats({ posts }) {
         </p>
       )}
 
-      {!postsLoaded || loading ? (
+      {!postsLoaded ? (
         <p className="directory-status">Loading…</p>
       ) : publishedPosts.length === 0 ? (
         <p className="directory-status">Publish a post to start seeing stats.</p>
-      ) : selectedPostId === 'all' ? (
+      ) : loading ? (
+        <p className="directory-status">Loading…</p>
+      ) : effectiveSelectedPostId === 'all' ? (
         <PostsPieChart data={byPost} />
       ) : (
         <>
           <p className="my-stats-total">
             <strong>{totalViews}</strong> view{totalViews === 1 ? '' : 's'} for &ldquo;
-            {postTitleById.get(selectedPostId)}&rdquo;
+            {postTitleById.get(effectiveSelectedPostId)}&rdquo;
           </p>
           <ViewsLineChart data={byDay} formatLabel={formatDay} />
         </>
