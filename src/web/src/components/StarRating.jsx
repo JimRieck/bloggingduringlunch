@@ -17,10 +17,7 @@ export function StarRating({ postId, session }) {
   }, [postId])
 
   useEffect(() => {
-    if (!session) {
-      setMyRating(null)
-      return
-    }
+    if (!session) return
     supabase
       .from('post_ratings')
       .select('rating')
@@ -53,7 +50,10 @@ export function StarRating({ postId, session }) {
 
   if (!summary) return null
 
-  const displayValue = hoverValue || myRating || Math.round(summary.average_rating)
+  // Derived, not synced via an effect: myRating only ever means
+  // something while logged in, so a logout is reflected the instant
+  // `session` goes falsy, with no stale-state window to clear.
+  const displayValue = hoverValue || (session && myRating) || Math.round(summary.average_rating)
 
   return (
     <div className="star-rating">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Avatar } from './Avatar.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import './CommentSection.css'
@@ -16,30 +16,40 @@ export function CommentSection({ postId, session }) {
   const [body, setBody] = useState('')
   const [error, setError] = useState('')
   const [posting, setPosting] = useState(false)
-
-  const load = useCallback(async () => {
-    const { data: rows } = await supabase
-      .from('post_comments')
-      .select('id, body, created_at, user_id')
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true })
-
-    const commentRows = rows ?? []
-    const userIds = [...new Set(commentRows.map((c) => c.user_id))]
-    // Two-step fetch, not an embedded profiles(...) select: `profiles`
-    // RLS only allows a user to see their own row, so an embed would
-    // come back null for every commenter but yourself.
-    const { data: profileRows } = userIds.length
-      ? await supabase.from('public_profiles').select('id, display_name, avatar_url').in('id', userIds)
-      : { data: [] }
-    const profileById = new Map((profileRows ?? []).map((p) => [p.id, p]))
-
-    setComments(commentRows.map((c) => ({ ...c, author: profileById.get(c.user_id) })))
-  }, [postId])
+  // Bumped (a plain, synchronous state update -- no async work of its
+  // own) to ask the effect below to refetch, instead of calling an
+  // external async load() function directly from the event handlers.
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      const { data: rows } = await supabase
+        .from('post_comments')
+        .select('id, body, created_at, user_id')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true })
+
+      const commentRows = rows ?? []
+      const userIds = [...new Set(commentRows.map((c) => c.user_id))]
+      // Two-step fetch, not an embedded profiles(...) select: `profiles`
+      // RLS only allows a user to see their own row, so an embed would
+      // come back null for every commenter but yourself.
+      const { data: profileRows } = userIds.length
+        ? await supabase.from('public_profiles').select('id, display_name, avatar_url').in('id', userIds)
+        : { data: [] }
+      const profileById = new Map((profileRows ?? []).map((p) => [p.id, p]))
+
+      if (cancelled) return
+      setComments(commentRows.map((c) => ({ ...c, author: profileById.get(c.user_id) })))
+    }
+
     load()
-  }, [load])
+    return () => {
+      cancelled = true
+    }
+  }, [postId, refreshKey])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -55,13 +65,13 @@ export function CommentSection({ postId, session }) {
       return
     }
     setBody('')
-    load()
+    setRefreshKey((k) => k + 1)
   }
 
   async function handleDelete(commentId) {
     if (!window.confirm('Delete this comment?')) return
     await supabase.from('post_comments').delete().eq('id', commentId)
-    load()
+    setRefreshKey((k) => k + 1)
   }
 
   return (
