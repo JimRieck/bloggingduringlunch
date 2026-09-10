@@ -50,9 +50,6 @@ export function SiteStats() {
 
   useEffect(() => {
     let cancelled = false
-    setError('')
-    setDayRows(null)
-    setAuthorRows(null)
 
     async function load() {
       if (isSingleDay) {
@@ -65,6 +62,7 @@ export function SiteStats() {
           setAuthorRows([])
           return
         }
+        setError('')
         setAuthorRows(data ?? [])
       } else {
         const { data, error: rpcError } = await supabase.rpc('site_views_by_day', {
@@ -77,6 +75,7 @@ export function SiteStats() {
           setDayRows([])
           return
         }
+        setError('')
         setDayRows(data ?? [])
       }
     }
