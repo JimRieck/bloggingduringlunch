@@ -10,6 +10,13 @@
       "Bash(git branch)",
       "Bash(git branch *)",
       "Bash(git show *)",
+      "Bash(git pull)",
+      "Bash(git pull *)",
+      "Bash(git checkout main)",
+      "Bash(git checkout -b *)",
+      "Bash(git add *)",
+      "Bash(git commit -m *)",
+      "Bash(git push -u origin *)",
       "Bash(npm test)",
       "Bash(npm test *)",
       "Bash(npm run lint)",
@@ -18,6 +25,14 @@
       "Bash(npx supabase@2.116.0 stop)",
       "Bash(npx supabase@2.116.0 status)",
       "Bash(npx supabase@2.116.0 db reset)"
+    ],
+    "deny": [
+      "Bash(git push origin main)",
+      "Bash(git push origin main:*)",
+      "Bash(git push -u origin main)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git push *--force*)"
     ]
   }
 }
