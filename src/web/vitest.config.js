@@ -1,9 +1,16 @@
 import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  plugins: [react()],
   test: {
+    // Node by default (the integration suites talk to a real local
+    // Supabase stack, no DOM needed) -- component tests opt into a
+    // DOM per-file via a `// @vitest-environment jsdom` docblock at
+    // the top of the file instead of flipping this globally.
     environment: 'node',
-    include: ['tests/**/*.test.js'],
+    setupFiles: ['./tests/component/setup.js'],
+    include: ['tests/**/*.test.{js,jsx}'],
     testTimeout: 15000,
     hookTimeout: 15000,
     // All 7 suites share one local Supabase stack. Running the files
