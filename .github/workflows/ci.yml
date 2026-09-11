@@ -104,6 +104,13 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          # `--project-ref` alone hit a known CLI/API auth bug --
+          # "Your account does not have the necessary privileges" on
+          # `supabase link` even for a project owner with a fully-
+          # privileged token (supabase/cli#3705). Setting the ref as
+          # an env var too, not just a CLI arg, is the workaround that
+          # resolved it for other reporters.
+          SUPABASE_PROJECT_REF: bcgvmvfndwubqfrxqopa
         run: |
           supabase link --project-ref bcgvmvfndwubqfrxqopa
           supabase db push
@@ -111,6 +118,7 @@ jobs:
       - name: Deploy Supabase Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: bcgvmvfndwubqfrxqopa
         run: supabase functions deploy --project-ref bcgvmvfndwubqfrxqopa
 
       - uses: actions/setup-node@v4
