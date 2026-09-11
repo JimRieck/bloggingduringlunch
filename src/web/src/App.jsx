@@ -110,7 +110,22 @@ function App() {
 
   let content
   if (pathname === '/directory') {
-    content = <UserDirectory session={session} />
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to access the user directory.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else if (!isSiteAdmin) {
+      content = (
+        <div id="directory-gate">
+          <p>You don&rsquo;t have access to this page.</p>
+        </div>
+      )
+    } else {
+      content = <UserDirectory session={session} />
+    }
   } else if (pathname === '/admin') {
     if (!session) {
       content = (
