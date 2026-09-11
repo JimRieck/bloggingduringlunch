@@ -13,10 +13,7 @@ export function Search() {
 
   useEffect(() => {
     const trimmed = query.trim()
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      setResults(null)
-      return
-    }
+    if (trimmed.length < MIN_QUERY_LENGTH) return
 
     let cancelled = false
     const timer = setTimeout(async () => {
@@ -76,7 +73,14 @@ export function Search() {
         className="search-input"
         placeholder="Search authors, blogs, or post titles…"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          const value = e.target.value
+          setQuery(value)
+          // Cleared right here, in the event that caused it, rather
+          // than reactively in the effect below -- the effect only
+          // ever needs to decide whether to fetch, not reset state.
+          if (value.trim().length < MIN_QUERY_LENGTH) setResults(null)
+        }}
         autoFocus
       />
 

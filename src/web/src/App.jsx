@@ -59,8 +59,7 @@ function App() {
     // an already-open session could otherwise keep working for up to
     // an hour. This closes that gap client-side as soon as we notice.
     if (profile?.disabled) {
-      setDisabledNotice(true)
-      supabase.auth.signOut()
+      supabase.auth.signOut().then(() => setDisabledNotice(true))
     }
   }, [profile])
 
