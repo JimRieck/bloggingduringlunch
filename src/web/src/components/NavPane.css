@@ -119,6 +119,54 @@
   padding: 11px;
 }
 
+.nav-link-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.nav-link-row .nav-link-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Icon-only, so it's always centered and never grows to fill the
+   row -- a fixed touch-target width rather than the 100%-wide rows
+   every other nav item uses. */
+#nav-pane:not(.collapsed) .nav-link-row .nav-link-inline-action {
+  flex-shrink: 0;
+  width: 40px;
+  justify-content: center;
+  padding: 11px 0;
+}
+
+/* Collapsed sidebar is only 64px wide (44px of usable content) --
+   not enough room for "My posts" and "+" side by side at a real
+   touch-target size, so this one row stacks instead, matching every
+   other row's already-icon-only collapsed treatment. */
+#nav-pane.collapsed .nav-link-row {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-section-label {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
 .nav-icon {
   font-size: 18px;
   line-height: 1;
@@ -235,5 +283,19 @@
   #nav-pane.collapsed #nav-logout {
     justify-content: flex-start;
     padding: 11px 10px;
+  }
+
+  /* The drawer is always full-width on mobile, even if `collapsed`
+     carried over from a previous desktop session -- un-stack back to
+     a side-by-side row instead of the narrow-sidebar column layout. */
+  #nav-pane.collapsed .nav-link-row {
+    flex-direction: row;
+  }
+
+  #nav-pane.collapsed .nav-link-row .nav-link-inline-action {
+    flex-shrink: 0;
+    width: 40px;
+    justify-content: center;
+    padding: 11px 0;
   }
 }

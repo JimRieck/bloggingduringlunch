@@ -16,24 +16,13 @@ function defaultRange() {
   return { start: isoDateString(start), end: isoDateString(end) }
 }
 
-function listDatesBetween(startDate, endDate) {
-  const dates = []
-  let cur = new Date(`${startDate}T00:00:00Z`)
-  const last = new Date(`${endDate}T00:00:00Z`)
-  while (cur <= last) {
-    dates.push(cur.toISOString().slice(0, 10))
-    cur.setUTCDate(cur.getUTCDate() + 1)
-  }
-  return dates
-}
-
 function formatDay(dateStr) {
-  // Every date in this component (the range boundaries, the group-by
-  // key derived from viewed_at) is a UTC calendar date, string-built
-  // to avoid timezone drift -- this display label has to stay in UTC
-  // too, or it silently shows the wrong day for anyone not on UTC
-  // (confirmed: without this, America/New_York showed Sep 4/5/7 for
-  // views actually grouped under Sep 5/6/8).
+  // Every date in this component (the range boundaries, the `day`
+  // column my_post_views_by_day returns) is a UTC calendar date,
+  // string-built to avoid timezone drift -- this display label has to
+  // stay in UTC too, or it silently shows the wrong day for anyone
+  // not on UTC (confirmed: without this, America/New_York showed Sep
+  // 4/5/7 for views actually grouped under Sep 5/6/8).
   return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -44,49 +33,67 @@ function formatDay(dateStr) {
 export function MyStats({ posts }) {
   const postsLoaded = posts !== null
   const publishedPosts = useMemo(() => (posts ?? []).filter((p) => p.status === 'published'), [posts])
+  const publishedPostIds = useMemo(() => publishedPosts.map((p) => p.id), [publishedPosts])
 
   const [range, setRange] = useState(defaultRange)
   const [selectedPostId, setSelectedPostId] = useState('all')
-  const [rows, setRows] = useState(null)
+  const [postRows, setPostRows] = useState(null)
+  const [dayRows, setDayRows] = useState(null)
   const [error, setError] = useState('')
 
-  // If the selected post gets unpublished/deleted out from under this
-  // filter, fall back to "All posts" instead of pointing at a post
-  // that's no longer a valid option.
+  // Derived, not synced back into state via an effect: if the
+  // selected post gets unpublished/deleted out from under this
+  // filter, this falls back to "All posts" the instant `publishedPosts`
+  // changes, with no stale-selection render in between.
+  const effectiveSelectedPostId =
+    selectedPostId === 'all' || publishedPosts.some((p) => p.id === selectedPostId) ? selectedPostId : 'all'
+
+  // Both RPCs group and sum in the database rather than fetching raw
+  // post_views rows and summing them in the browser -- the previous
+  // approach didn't scale past PostgREST's 1,000-row default response
+  // cap (a popular post over a wide range would silently undercount,
+  // not error), same issue as the admin site traffic chart had.
   useEffect(() => {
-    if (selectedPostId === 'all') return
-    if (!publishedPosts.some((p) => p.id === selectedPostId)) setSelectedPostId('all')
-  }, [publishedPosts, selectedPostId])
+    if (publishedPostIds.length === 0) return
+    let cancelled = false
 
-  useEffect(() => {
-    if (publishedPosts.length === 0) {
-      setRows([])
-      return
-    }
-    setError('')
-    setRows(null)
-
-    const startIso = `${range.start}T00:00:00.000Z`
-    const endExclusive = new Date(`${range.end}T00:00:00.000Z`)
-    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1)
-
-    const postIds = selectedPostId === 'all' ? publishedPosts.map((p) => p.id) : [selectedPostId]
-
-    supabase
-      .from('post_views')
-      .select('post_id, viewed_at')
-      .in('post_id', postIds)
-      .gte('viewed_at', startIso)
-      .lt('viewed_at', endExclusive.toISOString())
-      .then(({ data, error: fetchError }) => {
-        if (fetchError) {
-          setError(fetchError.message)
-          setRows([])
+    async function load() {
+      if (effectiveSelectedPostId === 'all') {
+        const { data, error: rpcError } = await supabase.rpc('my_post_views_by_post', {
+          post_ids: publishedPostIds,
+          start_date: range.start,
+          end_date: range.end,
+        })
+        if (cancelled) return
+        if (rpcError) {
+          setError(rpcError.message)
+          setPostRows([])
           return
         }
-        setRows(data ?? [])
-      })
-  }, [publishedPosts, range, selectedPostId])
+        setError('')
+        setPostRows(data ?? [])
+      } else {
+        const { data, error: rpcError } = await supabase.rpc('my_post_views_by_day', {
+          target_post_id: effectiveSelectedPostId,
+          start_date: range.start,
+          end_date: range.end,
+        })
+        if (cancelled) return
+        if (rpcError) {
+          setError(rpcError.message)
+          setDayRows([])
+          return
+        }
+        setError('')
+        setDayRows(data ?? [])
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [publishedPostIds, range, effectiveSelectedPostId])
 
   const postTitleById = useMemo(
     () => new Map(publishedPosts.map((p) => [p.id, p.title])),
@@ -94,26 +101,19 @@ export function MyStats({ posts }) {
   )
 
   const byPost = useMemo(() => {
-    if (!rows) return []
-    const counts = new Map()
-    for (const row of rows) counts.set(row.post_id, (counts.get(row.post_id) ?? 0) + 1)
+    if (!postRows) return []
+    const viewsById = new Map(postRows.map((r) => [r.post_id, r.views]))
     return publishedPosts
-      .map((p) => ({ id: p.id, title: p.title, views: counts.get(p.id) ?? 0 }))
+      .map((p) => ({ id: p.id, title: p.title, views: viewsById.get(p.id) ?? 0 }))
       .sort((a, b) => b.views - a.views)
-  }, [rows, publishedPosts])
+  }, [postRows, publishedPosts])
 
-  const byDay = useMemo(() => {
-    if (!rows) return []
-    const days = listDatesBetween(range.start, range.end)
-    const counts = new Map(days.map((d) => [d, 0]))
-    for (const row of rows) {
-      const day = row.viewed_at.slice(0, 10)
-      if (counts.has(day)) counts.set(day, counts.get(day) + 1)
-    }
-    return days.map((d) => ({ date: d, views: counts.get(d) }))
-  }, [rows, range])
+  const byDay = useMemo(() => (dayRows ?? []).map((r) => ({ date: r.day, views: r.views })), [dayRows])
 
-  const totalViews = rows?.length ?? 0
+  // Only ever displayed in the single-post branch below -- "All
+  // posts" shows its own per-slice totals via PostsPieChart instead.
+  const totalViews = (dayRows ?? []).reduce((sum, r) => sum + r.views, 0)
+  const loading = effectiveSelectedPostId === 'all' ? postRows === null : dayRows === null
   const today = useMemo(() => isoDateString(new Date()), [])
 
   function handleStartChange(e) {
@@ -141,7 +141,7 @@ export function MyStats({ posts }) {
         </label>
         <label className="my-stats-field">
           <span>Post</span>
-          <select value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
+          <select value={effectiveSelectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
             <option value="all">All posts</option>
             {publishedPosts.map((p) => (
               <option key={p.id} value={p.id}>
@@ -158,17 +158,19 @@ export function MyStats({ posts }) {
         </p>
       )}
 
-      {!postsLoaded || rows === null ? (
+      {!postsLoaded ? (
         <p className="directory-status">Loading…</p>
       ) : publishedPosts.length === 0 ? (
         <p className="directory-status">Publish a post to start seeing stats.</p>
-      ) : selectedPostId === 'all' ? (
+      ) : loading ? (
+        <p className="directory-status">Loading…</p>
+      ) : effectiveSelectedPostId === 'all' ? (
         <PostsPieChart data={byPost} />
       ) : (
         <>
           <p className="my-stats-total">
             <strong>{totalViews}</strong> view{totalViews === 1 ? '' : 's'} for &ldquo;
-            {postTitleById.get(selectedPostId)}&rdquo;
+            {postTitleById.get(effectiveSelectedPostId)}&rdquo;
           </p>
           <ViewsLineChart data={byDay} formatLabel={formatDay} />
         </>

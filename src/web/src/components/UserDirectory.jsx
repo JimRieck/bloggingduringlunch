@@ -14,7 +14,7 @@ export function UserDirectory({ session }) {
   useEffect(() => {
     if (!session) return
     supabase
-      .from('user_directory')
+      .from('user_directory_admin')
       .select('*')
       .then(({ data }) => setUsers(data ?? []))
   }, [session])
