@@ -13,6 +13,18 @@ function getStoredCollapsed() {
   }
 }
 
+// A labeled group of nav rows (e.g. "Org Admin", "Site Admin") --
+// the label itself follows the same showLabels rule as every other
+// row's text: hidden when the sidebar is collapsed, icons only.
+function NavSection({ label, showLabels, children }) {
+  return (
+    <div className="nav-section">
+      {showLabels && <div className="nav-section-label">{label}</div>}
+      {children}
+    </div>
+  )
+}
+
 export function NavPane({ userId, profile, displayName, email, ownedOrg, isSiteAdmin, onAvatarUploaded }) {
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -79,50 +91,57 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, isSiteA
         </div>
 
         <div id="nav-links">
-          <a href="/" title="My posts">
-            <span className="nav-icon" aria-hidden="true">
-              📝
-            </span>
-            {showLabels && <span>My posts</span>}
-          </a>
+          <div className="nav-link-row">
+            <a href="/" title="My posts" className="nav-link-main">
+              <span className="nav-icon" aria-hidden="true">
+                📝
+              </span>
+              {showLabels && <span>My posts</span>}
+            </a>
+            <a href="/posts/new" title="New post" className="nav-link-inline-action">
+              <span className="nav-icon" aria-hidden="true">
+                ➕
+              </span>
+            </a>
+          </div>
           <a href="/search" title="Search">
             <span className="nav-icon" aria-hidden="true">
               🔍
             </span>
             {showLabels && <span>Search</span>}
           </a>
-          <a href="/posts/new" title="New post">
-            <span className="nav-icon" aria-hidden="true">
-              ➕
-            </span>
-            {showLabels && <span>New post</span>}
-          </a>
-          <a href="/directory" target="_blank" rel="noopener noreferrer" title="Open user directory in a new tab">
-            <span className="nav-icon" aria-hidden="true">
-              👥
-            </span>
-            {showLabels && (
-              <>
-                <span>User directory</span>
-                <img src="/icons/external-link.svg" alt="Opens in a new tab" className="nav-new-tab-icon" />
-              </>
-            )}
-          </a>
+
           {ownedOrg && (
-            <button type="button" onClick={() => setShowInviteModal(true)} title="Invite by email">
-              <span className="nav-icon" aria-hidden="true">
-                ✉️
-              </span>
-              {showLabels && <span>Invite by email</span>}
-            </button>
+            <NavSection label="Org Admin" showLabels={showLabels}>
+              <button type="button" onClick={() => setShowInviteModal(true)} title="Invite by email">
+                <span className="nav-icon" aria-hidden="true">
+                  ✉️
+                </span>
+                {showLabels && <span>Invite by email</span>}
+              </button>
+            </NavSection>
           )}
+
           {isSiteAdmin && (
-            <a href="/admin" title="Site admin">
-              <span className="nav-icon" aria-hidden="true">
-                🛡️
-              </span>
-              {showLabels && <span>Site admin</span>}
-            </a>
+            <NavSection label="Site Admin" showLabels={showLabels}>
+              <a href="/admin" title="Website Stats">
+                <span className="nav-icon" aria-hidden="true">
+                  🛡️
+                </span>
+                {showLabels && <span>Website Stats</span>}
+              </a>
+              <a href="/directory" target="_blank" rel="noopener noreferrer" title="Open user directory in a new tab">
+                <span className="nav-icon" aria-hidden="true">
+                  👥
+                </span>
+                {showLabels && (
+                  <>
+                    <span>User directory</span>
+                    <img src="/icons/external-link.svg" alt="Opens in a new tab" className="nav-new-tab-icon" />
+                  </>
+                )}
+              </a>
+            </NavSection>
           )}
         </div>
 

@@ -11,7 +11,9 @@
 // disabled author's already-published posts disappear from public
 // queries but stay visible to their org. Also covers the RLS policy
 // from 20260909183450_site_admin_can_view_all_post_views.sql, added
-// for the admin page's site traffic chart.
+// for the admin page's site traffic chart, and the
+// user_directory_admin view from
+// 20260911190916_gate_user_directory_to_site_admins.sql.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
@@ -143,6 +145,27 @@ describe('site admin: disable accounts', () => {
       .eq('post_id', postId)
     expect(adminError).toBeNull()
     expect(asAdmin.length).toBeGreaterThan(0)
+  })
+
+  it("a site admin can read user_directory_admin, a non-admin gets zero rows", async () => {
+    const { data: asAdmin, error: adminError } = await adminAuthClient
+      .from('user_directory_admin')
+      .select('id, email')
+      .eq('id', targetId)
+    expect(adminError).toBeNull()
+    expect(asAdmin).toEqual([expect.objectContaining({ id: targetId })])
+
+    // targetClient is a real logged-in, non-admin user -- exactly the
+    // gap this view exists to close ("any logged-in user can
+    // currently see every other user's email"). Zero rows, not an
+    // error, matching this project's fail-narrow convention for
+    // is_site_admin()-gated views/RPCs elsewhere.
+    const { data: asNonAdmin, error: nonAdminError } = await targetClient
+      .from('user_directory_admin')
+      .select('id')
+      .eq('id', adminId)
+    expect(nonAdminError).toBeNull()
+    expect(asNonAdmin).toEqual([])
   })
 
   it('an admin can disable another account', async () => {
