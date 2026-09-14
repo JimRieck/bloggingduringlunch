@@ -1,0 +1,137 @@
+#import-wordpress {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px;
+  text-align: left;
+}
+
+#import-wordpress h2 {
+  margin-bottom: 8px;
+}
+
+.import-intro {
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+.import-source-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  .field {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+  }
+
+  button.primary {
+    width: auto;
+    padding: 10px 20px;
+    white-space: nowrap;
+  }
+}
+
+.import-status {
+  color: var(--text);
+  padding: 24px 0;
+}
+
+.import-list-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  row-gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+
+  button.primary {
+    width: auto;
+    padding: 10px 20px;
+    margin-left: auto;
+  }
+}
+
+.import-select-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.import-count {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.import-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.import-list li {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.import-list li.imported {
+  opacity: 0.6;
+}
+
+.import-list li label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.import-list li input[type='checkbox'] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.import-post-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.import-post-title {
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.import-post-done {
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.import-post-meta {
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.import-post-excerpt {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 6px;
+}
+
+.import-post-excerpt p {
+  margin: 0;
+}
