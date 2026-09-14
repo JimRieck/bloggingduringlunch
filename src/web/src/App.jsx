@@ -3,6 +3,7 @@ import './App.css'
 import { AdminPanel } from './components/AdminPanel.jsx'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
+import { ImportFromWordPress } from './components/ImportFromWordPress.jsx'
 import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
@@ -166,6 +167,17 @@ function App() {
       const postId = new URLSearchParams(window.location.search).get('id') || undefined
       content = <PostForm session={session} postId={postId} onSaved={() => (window.location.href = '/')} />
     }
+  } else if (pathname === '/posts/import') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to import posts.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else {
+      content = <ImportFromWordPress session={session} />
+    }
   } else if (passwordRecovery) {
     content = <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
   } else if (!session) {
@@ -248,6 +260,7 @@ function App() {
           displayName={profile?.display_name}
           email={session.user.email}
           ownedOrg={ownedOrg}
+          canImport={!!authorOrg}
           isSiteAdmin={isSiteAdmin}
           onAvatarUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
         />
