@@ -174,6 +174,11 @@ export function ImportFromWordPress({ session }) {
       content: DOMPurify.sanitize(rewriteImportedContent(p.content || '', urlMap)),
       thumbnail_url: p.featured_image ? (urlMap[p.featured_image] ?? null) : null,
       status: 'draft',
+      // Drafts have no published_at yet, so MyPosts.jsx falls back to
+      // created_at for the date it shows -- defaulting that to "now" would
+      // make every imported post look like it was written today instead of
+      // on its original WordPress date.
+      created_at: p.date,
     }))
 
     const { error } = await supabase.from('posts').insert(rows)
