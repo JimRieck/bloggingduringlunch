@@ -13,14 +13,25 @@ function formatDate(iso) {
   })
 }
 
+function extractImageUrls(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return [...doc.querySelectorAll('img[src]')].map((img) => img.getAttribute('src'))
+}
+
 // WordPress.com's API sometimes hands back a stray empty heading block
 // (e.g. `<h1 class="wp-block-heading"></h1>`) ahead of the real body --
 // the post's title is already stored separately in `posts.title`, so an
-// empty heading here is just noise, not lost content.
-function stripEmptyHeadings(html) {
+// empty heading here is just noise, not lost content. Also rewrites any
+// `<img src>` found in `urlMap` to point at this app's own rehosted copy
+// instead of the original (soon-to-be-deprecated) WordPress.com URL.
+function rewriteImportedContent(html, urlMap) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el) => {
     if (!el.textContent.trim()) el.remove()
+  })
+  doc.querySelectorAll('img[src]').forEach((img) => {
+    const rehosted = urlMap[img.getAttribute('src')]
+    if (rehosted) img.setAttribute('src', rehosted)
   })
   return doc.body.innerHTML
 }
@@ -71,7 +82,7 @@ export function ImportFromWordPress({ session }) {
     setFetching(true)
     setFetchError('')
     try {
-      const url = `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(site)}/posts/?number=${PAGE_SIZE}&page=${pageNum}&fields=ID,title,date,excerpt,content`
+      const url = `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(site)}/posts/?number=${PAGE_SIZE}&page=${pageNum}&fields=ID,title,date,excerpt,content,featured_image`
       const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`That site couldn't be reached (${response.status}). Check the address and try again.`)
@@ -134,11 +145,34 @@ export function ImportFromWordPress({ session }) {
     setImportError('')
     setImportNotice('')
 
+    const imageUrls = [
+      ...new Set(
+        toImport.flatMap((p) => [
+          ...(p.featured_image ? [p.featured_image] : []),
+          ...extractImageUrls(p.content || ''),
+        ]),
+      ),
+    ]
+
+    let urlMap = {}
+    if (imageUrls.length > 0) {
+      const { data, error: rehostError } = await supabase.functions.invoke('rehost-post-images', {
+        body: { imageUrls },
+      })
+      if (rehostError) {
+        setImporting(false)
+        setImportError("Couldn't copy images over from WordPress. Try again.")
+        return
+      }
+      urlMap = data?.urlMap ?? {}
+    }
+
     const rows = toImport.map((p) => ({
       organization_id: organizationId,
       author_id: session.user.id,
       title: p.title?.trim() || 'Untitled',
-      content: DOMPurify.sanitize(stripEmptyHeadings(p.content || '')),
+      content: DOMPurify.sanitize(rewriteImportedContent(p.content || '', urlMap)),
+      thumbnail_url: p.featured_image ? (urlMap[p.featured_image] ?? null) : null,
       status: 'draft',
     }))
 
@@ -156,8 +190,14 @@ export function ImportFromWordPress({ session }) {
       return next
     })
     setSelectedIds(new Set())
+
+    const skippedCount = imageUrls.filter((u) => !urlMap[u]).length
+    const skippedNote =
+      skippedCount > 0
+        ? ` ${skippedCount} image${skippedCount === 1 ? '' : 's'} couldn't be copied over and still point${skippedCount === 1 ? 's' : ''} at the original site.`
+        : ''
     setImportNotice(
-      `Imported ${toImport.length} post${toImport.length === 1 ? '' : 's'} as draft${toImport.length === 1 ? '' : 's'}. Review and publish from My posts.`,
+      `Imported ${toImport.length} post${toImport.length === 1 ? '' : 's'} as draft${toImport.length === 1 ? '' : 's'}. Review and publish from My posts.${skippedNote}`,
     )
   }
 
