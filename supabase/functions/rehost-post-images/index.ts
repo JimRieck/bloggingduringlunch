@@ -1,7 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-const MAX_URLS = 30
+const MAX_URLS = 10
 const MAX_BYTES = 5 * 1024 * 1024 // matches the post-images bucket's own file_size_limit
 
 const ALLOWED_TYPES: Record<string, string> = {

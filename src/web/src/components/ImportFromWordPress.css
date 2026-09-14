@@ -135,3 +135,9 @@
 .import-post-excerpt p {
   margin: 0;
 }
+
+.import-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

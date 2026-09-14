@@ -1,0 +1,8 @@
+.circular-progress-track {
+  stroke: var(--accent-bg);
+}
+
+.circular-progress-fill {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.2s ease;
+}
