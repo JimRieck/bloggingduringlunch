@@ -25,7 +25,7 @@ function NavSection({ label, showLabels, children }) {
   )
 }
 
-export function NavPane({ userId, profile, displayName, email, ownedOrg, isSiteAdmin, onAvatarUploaded }) {
+export function NavPane({ userId, profile, displayName, email, ownedOrg, canImport, isSiteAdmin, onAvatarUploaded }) {
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
@@ -110,6 +110,14 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, isSiteA
             </span>
             {showLabels && <span>Search</span>}
           </a>
+          {canImport && (
+            <a href="/posts/import" title="Import from WordPress">
+              <span className="nav-icon" aria-hidden="true">
+                📥
+              </span>
+              {showLabels && <span>Import from WordPress</span>}
+            </a>
+          )}
 
           {ownedOrg && (
             <NavSection label="Org Admin" showLabels={showLabels}>
