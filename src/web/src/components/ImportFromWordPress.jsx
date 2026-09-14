@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
+import { CircularProgress } from './CircularProgress.jsx'
 import './ImportFromWordPress.css'
 
 const PAGE_SIZE = 20
@@ -18,20 +19,53 @@ function extractImageUrls(html) {
   return [...doc.querySelectorAll('img[src]')].map((img) => img.getAttribute('src'))
 }
 
+// Some posts' image URLs point at this app's own current domain instead
+// of the WordPress.com site (e.g. bloggingduringlunch.com used to be
+// mapped to the WordPress site as a custom domain, before it was
+// repointed here) -- that domain now 404s (or serves this app's own SPA
+// shell) for a /wp-content/uploads/ path instead of the real image, even
+// though the same file is still reachable under the WordPress.com site
+// itself. Since every such image legitimately belongs to the site being
+// imported from, normalize its hostname to that site before fetching.
+function normalizeWpImageUrl(url, site) {
+  if (!site) return url
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname !== site && parsed.pathname.startsWith('/wp-content/uploads/')) {
+      parsed.protocol = 'https:'
+      parsed.hostname = site
+      return parsed.toString()
+    }
+  } catch {
+    // not an absolute URL -- leave it alone
+  }
+  return url
+}
+
 // WordPress.com's API sometimes hands back a stray empty heading block
 // (e.g. `<h1 class="wp-block-heading"></h1>`) ahead of the real body --
 // the post's title is already stored separately in `posts.title`, so an
 // empty heading here is just noise, not lost content. Also rewrites any
 // `<img src>` found in `urlMap` to point at this app's own rehosted copy
-// instead of the original (soon-to-be-deprecated) WordPress.com URL.
-function rewriteImportedContent(html, urlMap) {
+// instead of the original (soon-to-be-deprecated) WordPress.com URL --
+// and, since WordPress wraps most inline images in `<a href>` (a
+// lightbox link to the image's own WordPress attachment page) and sets
+// a `srcset` with several more WordPress.com-hosted size variants, both
+// of those get rewritten/dropped too, or the image would still leak the
+// old site even after its own `src` was successfully rehosted.
+function rewriteImportedContent(html, urlMap, site) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el) => {
     if (!el.textContent.trim()) el.remove()
   })
   doc.querySelectorAll('img[src]').forEach((img) => {
-    const rehosted = urlMap[img.getAttribute('src')]
-    if (rehosted) img.setAttribute('src', rehosted)
+    const rehosted = urlMap[normalizeWpImageUrl(img.getAttribute('src'), site)]
+    if (!rehosted) return
+    img.setAttribute('src', rehosted)
+    img.removeAttribute('srcset')
+    img.removeAttribute('sizes')
+    const link = img.closest('a')
+    if (link) link.setAttribute('href', rehosted)
   })
   return doc.body.innerHTML
 }
@@ -56,6 +90,7 @@ function normalizeSite(input) {
 export function ImportFromWordPress({ session }) {
   const [membership, setMembership] = useState(undefined)
   const [siteInput, setSiteInput] = useState('')
+  const [fetchedSite, setFetchedSite] = useState('')
   const [fetching, setFetching] = useState(false)
   const [fetchError, setFetchError] = useState('')
   const [posts, setPosts] = useState(null)
@@ -64,6 +99,7 @@ export function ImportFromWordPress({ session }) {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [importedIds, setImportedIds] = useState(new Set())
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(null)
   const [importError, setImportError] = useState('')
   const [importNotice, setImportNotice] = useState('')
 
@@ -113,6 +149,7 @@ export function ImportFromWordPress({ session }) {
     setSelectedIds(new Set())
     setImportedIds(new Set())
     setImportNotice('')
+    setFetchedSite(site)
     fetchPage(site, 1, false)
   }
 
@@ -136,6 +173,11 @@ export function ImportFromWordPress({ session }) {
     setSelectedIds(allSelected ? new Set() : new Set(selectableIds))
   }
 
+  // One rehost-post-images call per post (not one for the whole batch) --
+  // Edge Functions get a ~2s CPU-time budget per invocation, and bundling
+  // every selected post's images into a single call risked tripping that
+  // and silently dropping some images. Per-post calls also make a real
+  // "N of M" progress readout possible.
   async function handleImport() {
     const organizationId = membership.organizations.id
     const toImport = (posts ?? []).filter((p) => selectedIds.has(p.ID))
@@ -144,65 +186,83 @@ export function ImportFromWordPress({ session }) {
     setImporting(true)
     setImportError('')
     setImportNotice('')
+    setImportProgress({ done: 0, total: toImport.length })
 
-    const imageUrls = [
-      ...new Set(
-        toImport.flatMap((p) => [
-          ...(p.featured_image ? [p.featured_image] : []),
-          ...extractImageUrls(p.content || ''),
+    const importedThisRun = []
+    let failedPostCount = 0
+    let skippedImageCount = 0
+
+    for (const p of toImport) {
+      const imageUrls = [
+        ...new Set([
+          ...(p.featured_image ? [normalizeWpImageUrl(p.featured_image, fetchedSite)] : []),
+          ...extractImageUrls(p.content || '').map((u) => normalizeWpImageUrl(u, fetchedSite)),
         ]),
-      ),
-    ]
+      ]
 
-    let urlMap = {}
-    if (imageUrls.length > 0) {
-      const { data, error: rehostError } = await supabase.functions.invoke('rehost-post-images', {
-        body: { imageUrls },
-      })
-      if (rehostError) {
-        setImporting(false)
-        setImportError("Couldn't copy images over from WordPress. Try again.")
-        return
+      let urlMap = {}
+      if (imageUrls.length > 0) {
+        const { data, error: rehostError } = await supabase.functions.invoke('rehost-post-images', {
+          body: { imageUrls },
+        })
+        if (!rehostError) urlMap = data?.urlMap ?? {}
       }
-      urlMap = data?.urlMap ?? {}
+      skippedImageCount += imageUrls.filter((u) => !urlMap[u]).length
+
+      const { error } = await supabase.from('posts').insert({
+        organization_id: organizationId,
+        author_id: session.user.id,
+        title: p.title?.trim() || 'Untitled',
+        content: DOMPurify.sanitize(rewriteImportedContent(p.content || '', urlMap, fetchedSite)),
+        thumbnail_url: p.featured_image
+          ? (urlMap[normalizeWpImageUrl(p.featured_image, fetchedSite)] ?? null)
+          : null,
+        status: 'draft',
+        // Drafts have no published_at yet, so MyPosts.jsx falls back to
+        // created_at for the date it shows -- defaulting that to "now"
+        // would make every imported post look like it was written today
+        // instead of on its original WordPress date.
+        created_at: p.date,
+      })
+
+      if (error) {
+        failedPostCount += 1
+      } else {
+        importedThisRun.push(p.ID)
+      }
+      setImportProgress((prog) => ({ done: (prog?.done ?? 0) + 1, total: toImport.length }))
     }
-
-    const rows = toImport.map((p) => ({
-      organization_id: organizationId,
-      author_id: session.user.id,
-      title: p.title?.trim() || 'Untitled',
-      content: DOMPurify.sanitize(rewriteImportedContent(p.content || '', urlMap)),
-      thumbnail_url: p.featured_image ? (urlMap[p.featured_image] ?? null) : null,
-      status: 'draft',
-      // Drafts have no published_at yet, so MyPosts.jsx falls back to
-      // created_at for the date it shows -- defaulting that to "now" would
-      // make every imported post look like it was written today instead of
-      // on its original WordPress date.
-      created_at: p.date,
-    }))
-
-    const { error } = await supabase.from('posts').insert(rows)
 
     setImporting(false)
-    if (error) {
-      setImportError(error.message)
-      return
-    }
+    setImportProgress(null)
 
     setImportedIds((current) => {
       const next = new Set(current)
-      toImport.forEach((p) => next.add(p.ID))
+      importedThisRun.forEach((id) => next.add(id))
       return next
     })
-    setSelectedIds(new Set())
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      importedThisRun.forEach((id) => next.delete(id))
+      return next
+    })
 
-    const skippedCount = imageUrls.filter((u) => !urlMap[u]).length
-    const skippedNote =
-      skippedCount > 0
-        ? ` ${skippedCount} image${skippedCount === 1 ? '' : 's'} couldn't be copied over and still point${skippedCount === 1 ? 's' : ''} at the original site.`
-        : ''
+    if (importedThisRun.length === 0) {
+      setImportError("Couldn't import the selected post(s). Try again.")
+      return
+    }
+
+    const notes = []
+    if (failedPostCount > 0) {
+      notes.push(`${failedPostCount} post${failedPostCount === 1 ? '' : 's'} couldn't be imported.`)
+    }
+    if (skippedImageCount > 0) {
+      notes.push(
+        `${skippedImageCount} image${skippedImageCount === 1 ? '' : 's'} couldn't be copied over and still point${skippedImageCount === 1 ? 's' : ''} at the original site.`,
+      )
+    }
     setImportNotice(
-      `Imported ${toImport.length} post${toImport.length === 1 ? '' : 's'} as draft${toImport.length === 1 ? '' : 's'}. Review and publish from My posts.${skippedNote}`,
+      `Imported ${importedThisRun.length} post${importedThisRun.length === 1 ? '' : 's'} as draft${importedThisRun.length === 1 ? '' : 's'}. Review and publish from My posts.${notes.length ? ' ' + notes.join(' ') : ''}`,
     )
   }
 
@@ -273,7 +333,14 @@ export function ImportFromWordPress({ session }) {
               disabled={selectedIds.size === 0 || importing}
               onClick={handleImport}
             >
-              {importing ? 'Importing…' : `Import ${selectedIds.size || ''} selected`}
+              {importing ? (
+                <span className="import-progress">
+                  <CircularProgress value={importProgress?.done ?? 0} max={importProgress?.total ?? 1} />
+                  {importProgress ? `${importProgress.done} of ${importProgress.total}` : 'Importing…'}
+                </span>
+              ) : (
+                `Import ${selectedIds.size || ''} selected`
+              )}
             </button>
           </div>
 
