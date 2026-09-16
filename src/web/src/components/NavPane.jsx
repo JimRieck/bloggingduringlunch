@@ -118,6 +118,14 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, canImpo
               {showLabels && <span>Import from WordPress</span>}
             </a>
           )}
+          {canImport && (
+            <a href="/posts/bulk-tag" title="Auto-tag posts">
+              <span className="nav-icon" aria-hidden="true">
+                ✨
+              </span>
+              {showLabels && <span>Auto-tag posts</span>}
+            </a>
+          )}
 
           {ownedOrg && (
             <NavSection label="Org Admin" showLabels={showLabels}>

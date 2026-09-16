@@ -3,6 +3,7 @@ import './App.css'
 import { AdminPanel } from './components/AdminPanel.jsx'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
+import { BulkAutoTag } from './components/BulkAutoTag.jsx'
 import { ImportFromWordPress } from './components/ImportFromWordPress.jsx'
 import { LandingNav } from './components/LandingNav.jsx'
 import { NavPane } from './components/NavPane.jsx'
@@ -179,6 +180,17 @@ function App() {
       )
     } else {
       content = <ImportFromWordPress session={session} />
+    }
+  } else if (pathname === '/posts/bulk-tag') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to auto-tag posts.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else {
+      content = <BulkAutoTag session={session} />
     }
   } else if (passwordRecovery) {
     content = <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />

@@ -1,0 +1,105 @@
+#bulk-auto-tag {
+  flex-grow: 1;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  text-align: left;
+}
+
+.bulk-auto-tag-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  h2 {
+    margin: 0 0 6px;
+  }
+}
+
+.bulk-auto-tag-intro {
+  max-width: 480px;
+  color: var(--text);
+  font-size: 14px;
+  margin: 0;
+}
+
+.bulk-auto-tag-status {
+  color: var(--text);
+}
+
+.bulk-auto-tag-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.bulk-auto-tag-row-main h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+
+.bulk-auto-tag-row button.link {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.status-badge {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.status-badge.status-published {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.status-badge.status-draft {
+  color: var(--text);
+  background: var(--code-bg);
+}
+
+.post-taxonomy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.post-category-badge {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.post-tag-badge {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.bulk-auto-tag-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}

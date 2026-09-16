@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
+import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
 import { CircularProgress } from './CircularProgress.jsx'
 import './ImportFromWordPress.css'
 
@@ -103,6 +104,9 @@ export function ImportFromWordPress({ session }) {
   const [importError, setImportError] = useState('')
   const [importNotice, setImportNotice] = useState('')
 
+  const [orgCategories, setOrgCategories] = useState([])
+  const [authorTags, setAuthorTags] = useState([])
+
   useEffect(() => {
     supabase
       .from('memberships')
@@ -114,11 +118,28 @@ export function ImportFromWordPress({ session }) {
       .then(({ data }) => setMembership(data ?? null))
   }, [session.user.id])
 
+  useEffect(() => {
+    supabase
+      .from('tags')
+      .select('id, name')
+      .eq('author_id', session.user.id)
+      .then(({ data }) => setAuthorTags(data ?? []))
+  }, [session.user.id])
+
+  useEffect(() => {
+    if (!membership?.organizations?.id) return
+    supabase
+      .from('categories')
+      .select('id, name')
+      .eq('organization_id', membership.organizations.id)
+      .then(({ data }) => setOrgCategories(data ?? []))
+  }, [membership?.organizations?.id])
+
   async function fetchPage(site, pageNum, append) {
     setFetching(true)
     setFetchError('')
     try {
-      const url = `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(site)}/posts/?number=${PAGE_SIZE}&page=${pageNum}&fields=ID,title,date,excerpt,content,featured_image`
+      const url = `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(site)}/posts/?number=${PAGE_SIZE}&page=${pageNum}&fields=ID,title,date,excerpt,content,featured_image,categories,tags`
       const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`That site couldn't be reached (${response.status}). Check the address and try again.`)
@@ -192,6 +213,14 @@ export function ImportFromWordPress({ session }) {
     let failedPostCount = 0
     let skippedImageCount = 0
 
+    // Local, mutable copies -- resolveCategoryIds/resolveTagIds append a
+    // newly-created row to whichever list they're given, so a category
+    // or tag invented for post #1 in this loop is reused (not
+    // recreated) for post #5 if it shows up again, without waiting on a
+    // state update between iterations.
+    const orgCategoriesCopy = [...orgCategories]
+    const authorTagsCopy = [...authorTags]
+
     for (const p of toImport) {
       const imageUrls = [
         ...new Set([
@@ -209,30 +238,57 @@ export function ImportFromWordPress({ session }) {
       }
       skippedImageCount += imageUrls.filter((u) => !urlMap[u]).length
 
-      const { error } = await supabase.from('posts').insert({
-        organization_id: organizationId,
-        author_id: session.user.id,
-        title: p.title?.trim() || 'Untitled',
-        content: DOMPurify.sanitize(rewriteImportedContent(p.content || '', urlMap, fetchedSite)),
-        thumbnail_url: p.featured_image
-          ? (urlMap[normalizeWpImageUrl(p.featured_image, fetchedSite)] ?? null)
-          : null,
-        status: 'draft',
-        // Drafts have no published_at yet, so MyPosts.jsx falls back to
-        // created_at for the date it shows -- defaulting that to "now"
-        // would make every imported post look like it was written today
-        // instead of on its original WordPress date.
-        created_at: p.date,
-      })
+      const { data: insertedPost, error } = await supabase
+        .from('posts')
+        .insert({
+          organization_id: organizationId,
+          author_id: session.user.id,
+          title: p.title?.trim() || 'Untitled',
+          content: DOMPurify.sanitize(rewriteImportedContent(p.content || '', urlMap, fetchedSite)),
+          thumbnail_url: p.featured_image
+            ? (urlMap[normalizeWpImageUrl(p.featured_image, fetchedSite)] ?? null)
+            : null,
+          status: 'draft',
+          // Drafts have no published_at yet, so MyPosts.jsx falls back to
+          // created_at for the date it shows -- defaulting that to "now"
+          // would make every imported post look like it was written today
+          // instead of on its original WordPress date.
+          created_at: p.date,
+        })
+        .select('id')
+        .single()
 
       if (error) {
         failedPostCount += 1
       } else {
         importedThisRun.push(p.ID)
+
+        // WordPress.com's API returns categories/tags as objects keyed
+        // by name (already resolved, not bare numeric ids) -- confirmed
+        // directly against the live API before relying on this shape.
+        const categoryNames = Object.values(p.categories ?? {}).map((c) => c.name)
+        const tagNames = Object.values(p.tags ?? {}).map((t) => t.name)
+
+        if (categoryNames.length > 0) {
+          const categoryIds = await resolveCategoryIds(categoryNames, organizationId, orgCategoriesCopy)
+          if (categoryIds.length > 0) {
+            await supabase
+              .from('post_categories')
+              .insert(categoryIds.map((category_id) => ({ post_id: insertedPost.id, category_id })))
+          }
+        }
+        if (tagNames.length > 0) {
+          const tagIds = await resolveTagIds(tagNames, session.user.id, authorTagsCopy)
+          if (tagIds.length > 0) {
+            await supabase.from('post_tags').insert(tagIds.map((tag_id) => ({ post_id: insertedPost.id, tag_id })))
+          }
+        }
       }
       setImportProgress((prog) => ({ done: (prog?.done ?? 0) + 1, total: toImport.length }))
     }
 
+    setOrgCategories(orgCategoriesCopy)
+    setAuthorTags(authorTagsCopy)
     setImporting(false)
     setImportProgress(null)
 
