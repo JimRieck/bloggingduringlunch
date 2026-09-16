@@ -1,15 +1,19 @@
 #recent-posts {
   flex-grow: 1;
   padding: 32px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+  gap: 24px;
   text-align: left;
 }
 
-#recent-posts .post-summary:not(:first-child) {
-  margin-top: 32px;
-  padding-top: 32px;
-  border-top: 1px solid var(--border);
+#recent-posts .post-summary {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .recent-posts-status {
@@ -18,7 +22,6 @@
 
 #recent-posts .post-thumbnail-frame {
   width: 100%;
-  max-width: 480px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 4px;
@@ -30,7 +33,18 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* `contain` (not `cover`) -- thumbnails are often title cards with text
+     or a logo right up to the edge, and cropping to fill the frame was
+     clipping that text instead of just trimming empty background. */
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  #recent-posts {
+    grid-template-columns: 1fr;
+    padding: 20px;
+    gap: 20px;
+  }
 }
 
 #recent-posts .recent-post-byline {
