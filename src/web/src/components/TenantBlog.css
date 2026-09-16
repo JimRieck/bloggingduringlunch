@@ -67,6 +67,29 @@
   align-self: flex-start;
 }
 
+.post-taxonomy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.post-category-badge {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.post-tag-badge {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
 .post-thumbnail {
   display: block;
   width: 100%;

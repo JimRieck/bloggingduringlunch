@@ -116,6 +116,13 @@ export function PostForm({ session, postId, onSaved }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
+  const [categories, setCategories] = useState([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState(new Set())
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [addingCategory, setAddingCategory] = useState(false)
+  const [authorTags, setAuthorTags] = useState([])
+  const [tagChips, setTagChips] = useState([])
+  const [tagInput, setTagInput] = useState('')
 
   const editor = useEditor({
     extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout],
@@ -154,6 +161,102 @@ export function PostForm({ session, postId, onSaved }) {
 
   const organizationId = postId ? post?.organization_id : membership?.organizations?.id
   const organizationName = postId ? post?.organizations?.name : membership?.organizations?.name
+  const postAuthorId = postId ? post?.author_id : session.user.id
+  const isAuthor = postAuthorId === session.user.id
+
+  useEffect(() => {
+    if (!organizationId) return
+    supabase
+      .from('categories')
+      .select('id, name')
+      .eq('organization_id', organizationId)
+      .order('name')
+      .then(({ data }) => setCategories(data ?? []))
+  }, [organizationId])
+
+  useEffect(() => {
+    supabase
+      .from('tags')
+      .select('id, name')
+      .eq('author_id', session.user.id)
+      .order('name')
+      .then(({ data }) => setAuthorTags(data ?? []))
+  }, [session.user.id])
+
+  useEffect(() => {
+    if (!postId || !post) return
+    supabase
+      .from('post_categories')
+      .select('category_id')
+      .eq('post_id', postId)
+      .then(({ data }) => setSelectedCategoryIds(new Set((data ?? []).map((r) => r.category_id))))
+    supabase
+      .from('post_tags')
+      .select('tags(name)')
+      .eq('post_id', postId)
+      .then(({ data }) => setTagChips((data ?? []).map((r) => r.tags?.name).filter(Boolean)))
+  }, [postId, post])
+
+  function toggleCategory(id) {
+    setSelectedCategoryIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleAddCategory() {
+    const name = newCategoryName.trim()
+    if (!name || !organizationId) return
+    setAddingCategory(true)
+    const { data, error: addError } = await supabase
+      .from('categories')
+      .insert({ organization_id: organizationId, name })
+      .select('id, name')
+      .single()
+    setAddingCategory(false)
+    if (addError) {
+      setError(addError.message)
+      return
+    }
+    setCategories((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)))
+    setSelectedCategoryIds((current) => new Set(current).add(data.id))
+    setNewCategoryName('')
+  }
+
+  function commitTagInput() {
+    const name = tagInput.trim()
+    if (name && !tagChips.some((t) => t.toLowerCase() === name.toLowerCase())) {
+      setTagChips((current) => [...current, name])
+    }
+    setTagInput('')
+  }
+
+  function handleTagKeyDown(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      commitTagInput()
+    }
+  }
+
+  function addSuggestedTag(name) {
+    if (!tagChips.some((t) => t.toLowerCase() === name.toLowerCase())) {
+      setTagChips((current) => [...current, name])
+    }
+    setTagInput('')
+  }
+
+  function removeTagChip(name) {
+    setTagChips((current) => current.filter((t) => t !== name))
+  }
+
+  const tagSuggestions = tagInput.trim()
+    ? authorTags
+        .filter((t) => t.name.toLowerCase().includes(tagInput.trim().toLowerCase()))
+        .filter((t) => !tagChips.some((chip) => chip.toLowerCase() === t.name.toLowerCase()))
+        .slice(0, 6)
+    : []
 
   async function handleSave(status) {
     if (!title.trim()) {
@@ -184,12 +287,55 @@ export function PostForm({ session, postId, onSaved }) {
       .select('id, slug')
       .single()
 
-    setSaving(false)
     if (saveError) {
+      setSaving(false)
       setError(saveError.message)
       return
     }
 
+    const savedPostId = data.id
+
+    // Tag rows aren't created until save (matching WordPress's own
+    // behavior) -- resolve each chip against the author's already-loaded
+    // tags, creating any that don't exist yet.
+    const tagIds = []
+    for (const name of tagChips) {
+      const existing = authorTags.find((t) => t.name.toLowerCase() === name.toLowerCase())
+      if (existing) {
+        tagIds.push(existing.id)
+        continue
+      }
+      const { data: newTag, error: tagError } = await supabase
+        .from('tags')
+        .insert({ author_id: session.user.id, name })
+        .select('id, name')
+        .single()
+      if (tagError) {
+        setSaving(false)
+        setError(tagError.message)
+        return
+      }
+      setAuthorTags((current) => [...current, newTag])
+      tagIds.push(newTag.id)
+    }
+
+    // Simplest correct sync: replace the full set rather than diffing --
+    // category/tag counts on one post are always small.
+    await supabase.from('post_categories').delete().eq('post_id', savedPostId)
+    if (selectedCategoryIds.size > 0) {
+      await supabase
+        .from('post_categories')
+        .insert([...selectedCategoryIds].map((category_id) => ({ post_id: savedPostId, category_id })))
+    }
+
+    if (isAuthor) {
+      await supabase.from('post_tags').delete().eq('post_id', savedPostId)
+      if (tagIds.length > 0) {
+        await supabase.from('post_tags').insert(tagIds.map((tag_id) => ({ post_id: savedPostId, tag_id })))
+      }
+    }
+
+    setSaving(false)
     setNotice(status === 'published' ? 'Post published.' : 'Draft saved.')
     onSaved?.(data)
   }
@@ -247,6 +393,83 @@ export function PostForm({ session, postId, onSaved }) {
           )}
         </div>
       </div>
+      <div className="field">
+        <span>Categories</span>
+        <div className="taxonomy-box">
+          {categories.length === 0 ? (
+            <p className="taxonomy-empty">No categories yet.</p>
+          ) : (
+            <ul className="category-checklist">
+              {categories.map((c) => (
+                <li key={c.id}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={selectedCategoryIds.has(c.id)}
+                      onChange={() => toggleCategory(c.id)}
+                    />
+                    {c.name}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="taxonomy-add-new">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleAddCategory()
+                }
+              }}
+              placeholder="New category name"
+              disabled={addingCategory}
+            />
+            <button type="button" className="link" onClick={handleAddCategory} disabled={addingCategory}>
+              + Add New Category
+            </button>
+          </div>
+        </div>
+      </div>
+      {isAuthor && (
+        <div className="field">
+          <span>Tags</span>
+          <div className="taxonomy-box">
+            <div className="tag-chip-input">
+              {tagChips.map((t) => (
+                <span className="tag-chip" key={t}>
+                  {t}
+                  <button type="button" onClick={() => removeTagChip(t)} aria-label={`Remove ${t}`}>
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={commitTagInput}
+                placeholder="Add a tag, press Enter"
+              />
+            </div>
+            {tagSuggestions.length > 0 && (
+              <ul className="tag-suggestions">
+                {tagSuggestions.map((s) => (
+                  <li key={s.id}>
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addSuggestedTag(s.name)}>
+                      {s.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
       <div className="field">
         <span>Body</span>
         <div className="editor-shell">
