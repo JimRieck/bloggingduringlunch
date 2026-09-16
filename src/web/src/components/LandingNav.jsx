@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { AuthPanel } from './AuthPanel.jsx'
-import { SearchBox } from './SearchBox.jsx'
 import './LandingNav.css'
 
 const PITCH_COPY =
@@ -40,14 +39,6 @@ export function LandingNav({ disabledNotice }) {
         >
           About
         </button>
-        <button
-          type="button"
-          className={activeSection === 'search' ? 'active' : ''}
-          aria-expanded={activeSection === 'search'}
-          onClick={() => toggle('search')}
-        >
-          Search
-        </button>
       </div>
 
       {activeSection === 'login' && (
@@ -71,12 +62,6 @@ export function LandingNav({ disabledNotice }) {
               ))}
             </ul>
           </div>
-        </div>
-      )}
-
-      {activeSection === 'search' && (
-        <div className="landing-nav-panel">
-          <SearchBox />
         </div>
       )}
     </nav>

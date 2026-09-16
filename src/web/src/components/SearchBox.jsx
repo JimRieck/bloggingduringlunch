@@ -14,10 +14,12 @@ const DEFAULT_WINDOW_DAYS = 90
 
 const POST_COLUMNS = 'id, title, slug, published_at, thumbnail_url, organization_id, author_id'
 
-// The reusable search component -- used both by the gated /search page
-// (Search.jsx, a thin wrapper around this) and embedded directly on the
-// logged-out landing page via LandingNav's "Search" tab.
-export function SearchBox({ autoFocus = false }) {
+// The reusable search component -- used by the gated /search page
+// (Search.jsx, a thin wrapper around this) and directly as the logged-out
+// landing page's main content (App.jsx), in place of RecentPosts. `wide`
+// switches the post-results grid from the narrow single-panel layout to
+// RecentPosts' own full-width 3/2/1-column layout for that second case.
+export function SearchBox({ autoFocus = false, wide = false }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null)
   const [defaultPosts, setDefaultPosts] = useState(null)
@@ -138,7 +140,7 @@ export function SearchBox({ autoFocus = false }) {
     results && results.authors.length === 0 && results.orgs.length === 0 && results.posts.length === 0
 
   return (
-    <div className="search-box">
+    <div className={wide ? 'search-box search-box-wide' : 'search-box'}>
       <input
         type="search"
         className="search-input"

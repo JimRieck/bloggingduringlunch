@@ -83,6 +83,43 @@
   }
 }
 
+/* Used when SearchBox is the landing page's main content (in place of
+   RecentPosts) rather than a narrow accordion/page panel -- lets the
+   post grid use the same full-width 3/2/1-column layout RecentPosts.css
+   defines on .post-grid, instead of the narrow-panel 2/1-column rule
+   above. The 3-class selector is deliberate, not decorative: it needs
+   to out-specificity .post-grid.search-post-grid regardless of which
+   rule the bundler happens to place last (see that rule's own comment
+   for the bug this exact pattern caused once already). */
+.search-box-wide {
+  max-width: none;
+}
+
+.search-box-wide .search-input {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.search-box-wide .post-grid.search-post-grid {
+  grid-template-columns: repeat(3, 1fr);
+  padding: 32px;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .search-box-wide .post-grid.search-post-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .search-box-wide .post-grid.search-post-grid {
+    grid-template-columns: 1fr;
+    padding: 20px;
+    gap: 20px;
+  }
+}
+
 .post-card-note {
   margin-top: 8px;
   font-size: 12px;
