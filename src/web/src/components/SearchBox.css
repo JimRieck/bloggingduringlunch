@@ -66,7 +66,12 @@
   gap: 8px;
 }
 
-.search-post-grid {
+/* Compound selector (not just .search-post-grid) so this reliably wins
+   over .post-grid's own 3/2/1-column rules in RecentPosts.css -- same
+   specificity + later-in-bundle ordering was letting the 3-column rule
+   win depending on import order, squeezing cards into ~150px columns
+   in a panel that's only 480px wide. */
+.post-grid.search-post-grid {
   /* Same .post-summary card RecentPosts.jsx uses on the main page, but
      the search panel is much narrower than a full page -- one column
      reads better than a cramped 2-3 column grid at that width. */
