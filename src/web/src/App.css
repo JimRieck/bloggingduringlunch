@@ -27,74 +27,21 @@
   border-bottom: 1px solid var(--border);
 }
 
+#site-header h1 {
+  margin: 0;
+}
+
+.site-logo {
+  /* Scales with viewport width instead of one fixed size -- was 56px
+     everywhere, which read as tiny on a wide desktop screen. */
+  height: clamp(48px, 8vw, 110px);
+  width: auto;
+  max-width: 100%;
+}
+
 .tagline {
   color: var(--text);
-  margin-top: -16px;
-}
-
-#landing {
-  flex-grow: 1;
-  display: flex;
-  align-items: flex-start;
-  gap: 48px;
-  padding: 32px;
-  text-align: left;
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 40px;
-    padding: 20px;
-  }
-}
-
-#landing-feed {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-#landing-feed #recent-posts {
-  padding: 0;
-}
-
-#pitch-strip {
-  padding-bottom: 20px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.pitch-copy {
-  margin: 0 0 16px;
-  color: var(--text);
-}
-
-.pitch-points {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  li {
-    padding-left: 26px;
-    position: relative;
-  }
-
-  li::before {
-    content: '✓';
-    position: absolute;
-    left: 0;
-    color: var(--accent);
-  }
-}
-
-#auth-panel {
-  flex: 0 0 360px;
-
-  @media (max-width: 1024px) {
-    flex: 1 1 auto;
-  }
+  margin-top: 12px;
 }
 
 #posts {
