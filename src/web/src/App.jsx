@@ -186,7 +186,9 @@ function App() {
       <>
         <LandingNav disabledNotice={disabledNotice} />
         <header id="site-header">
-          <h1>Blogging During Lunch</h1>
+          <h1>
+            <img src="/images/bdl_logo.jpg" alt="Blogging During Lunch" className="site-logo" />
+          </h1>
           <p className="tagline">Short posts, written on a lunch break.</p>
         </header>
         <RecentPosts />
@@ -206,7 +208,9 @@ function App() {
           />
         )}
         <header id="site-header">
-          <h1>Blogging During Lunch</h1>
+          <h1>
+            <img src="/images/bdl_logo.jpg" alt="Blogging During Lunch" className="site-logo" />
+          </h1>
           <p className="tagline">Short posts, written on a lunch break.</p>
         </header>
 

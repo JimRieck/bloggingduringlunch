@@ -27,9 +27,25 @@
   border-bottom: 1px solid var(--border);
 }
 
+#site-header h1 {
+  margin: 0;
+}
+
+.site-logo {
+  height: 56px;
+  width: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .site-logo {
+    height: 40px;
+  }
+}
+
 .tagline {
   color: var(--text);
-  margin-top: -16px;
+  margin-top: 12px;
 }
 
 #posts {
