@@ -6,6 +6,7 @@ import Image from '@tiptap/extension-image'
 import { supabase } from '../lib/supabaseClient.js'
 import { Callout } from '../lib/CalloutExtension.js'
 import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
+import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { ImagePicker } from './ImagePicker.jsx'
 import './PostForm.css'
 
@@ -148,6 +149,7 @@ export function PostForm({ session, postId, onSaved }) {
   const [authorTags, setAuthorTags] = useState([])
   const [tagChips, setTagChips] = useState([])
   const [tagInput, setTagInput] = useState('')
+  const [suggesting, setSuggesting] = useState(false)
 
   const editor = useEditor({
     extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout, YoutubeEmbed],
@@ -291,6 +293,69 @@ export function PostForm({ session, postId, onSaved }) {
     setTagChips((current) => current.filter((t) => t !== name))
   }
 
+  // AI-suggested categories/tags are added to the existing selection,
+  // never replacing it, and land in the exact same editable UI a manual
+  // pick does -- nothing is persisted until Save. Categories are created
+  // immediately for an unmatched suggestion (same as "+ Add New
+  // Category" already does); tags are left as plain chip strings, same
+  // as typing one manually, since tag rows aren't created until Save.
+  async function handleAutoSuggest() {
+    if (!editor || !organizationId) return
+    const content = editor.getText().trim()
+    if (!title.trim() && !content) {
+      setError('Write something first, then auto-suggest tags and categories.')
+      return
+    }
+    setError('')
+    setSuggesting(true)
+
+    const { data, error: suggestError } = await supabase.functions.invoke('suggest-tags-and-categories', {
+      body: {
+        title: title.trim(),
+        content,
+        existingCategories: categories.map((c) => c.name),
+        existingTags: authorTags.map((t) => t.name),
+      },
+    })
+
+    if (suggestError || data?.error) {
+      setSuggesting(false)
+      // supabase-js doesn't parse a non-2xx function response body into
+      // `data` -- the specific error code this function returns (e.g.
+      // "not_configured") only shows up in `error.context`, the raw
+      // Response, so it has to be read out separately here.
+      let reason = data?.error
+      if (!reason && suggestError?.context) {
+        try {
+          reason = (await suggestError.context.json())?.error
+        } catch {
+          // context wasn't JSON, or already consumed -- fall through to
+          // the generic message below
+        }
+      }
+      setError(
+        reason === 'not_configured'
+          ? 'Auto-suggest isn’t configured yet.'
+          : 'Couldn’t generate suggestions. Try again.',
+      )
+      return
+    }
+
+    const categoriesCopy = [...categories]
+    const newCategoryIds = await resolveCategoryIds(data.categories ?? [], organizationId, categoriesCopy)
+    setCategories(categoriesCopy.sort((a, b) => a.name.localeCompare(b.name)))
+    setSelectedCategoryIds((current) => new Set([...current, ...newCategoryIds]))
+
+    if (isAuthor) {
+      const suggestedTagNames = (data.tags ?? []).filter(
+        (name) => !tagChips.some((chip) => chip.toLowerCase() === name.toLowerCase()),
+      )
+      setTagChips((current) => [...current, ...suggestedTagNames])
+    }
+
+    setSuggesting(false)
+  }
+
   const tagSuggestions = tagInput.trim()
     ? authorTags
         .filter((t) => t.name.toLowerCase().includes(tagInput.trim().toLowerCase()))
@@ -432,6 +497,11 @@ export function PostForm({ session, postId, onSaved }) {
             </button>
           )}
         </div>
+      </div>
+      <div className="field">
+        <button type="button" className="link" onClick={handleAutoSuggest} disabled={suggesting}>
+          {suggesting ? 'Suggesting…' : '✨ Auto-suggest tags & categories'}
+        </button>
       </div>
       <div className="field">
         <span>Categories</span>

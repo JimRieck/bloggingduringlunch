@@ -6,3 +6,7 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Edge Function secrets for local dev (e.g. ANTHROPIC_API_KEY) -- never
+# committed; set in production via `supabase secrets set`.
+functions/.env
