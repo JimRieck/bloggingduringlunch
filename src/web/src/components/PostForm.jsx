@@ -5,8 +5,19 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import { supabase } from '../lib/supabaseClient.js'
 import { Callout } from '../lib/CalloutExtension.js'
+import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
 import { ImagePicker } from './ImagePicker.jsx'
 import './PostForm.css'
+
+// Accepts a full YouTube URL (watch/embed/youtu.be, with or without
+// extra query params) or a bare 11-character video id typed directly.
+function extractYoutubeId(input) {
+  const trimmed = input.trim()
+  const urlMatch = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/)
+  if (urlMatch) return urlMatch[1]
+  if (/^[\w-]{11}$/.test(trimmed)) return trimmed
+  return null
+}
 
 const TOOLBAR_BUTTONS = [
   { title: 'Bold', icon: '/icons/bold.svg', command: (chain) => chain.toggleBold(), active: 'bold' },
@@ -82,6 +93,17 @@ function EditorToolbar({ editor, onInsertImage }) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
 
+  function insertVideo() {
+    const input = window.prompt('YouTube video URL')
+    if (!input) return
+    const videoId = extractYoutubeId(input)
+    if (!videoId) {
+      window.alert('Could not find a YouTube video ID in that URL.')
+      return
+    }
+    editor.chain().focus().insertContent({ type: 'youtubeEmbed', attrs: { videoId } }).run()
+  }
+
   return (
     <div className="editor-toolbar">
       {TOOLBAR_BUTTONS.map((b) => (
@@ -101,6 +123,9 @@ function EditorToolbar({ editor, onInsertImage }) {
       </button>
       <button type="button" title="Image" onMouseDown={(e) => e.preventDefault()} onClick={onInsertImage}>
         <img src="/icons/image.svg" alt="Image" />
+      </button>
+      <button type="button" title="Video" onMouseDown={(e) => e.preventDefault()} onClick={insertVideo}>
+        <img src="/icons/video.svg" alt="Video" />
       </button>
     </div>
   )
@@ -125,7 +150,7 @@ export function PostForm({ session, postId, onSaved }) {
   const [tagInput, setTagInput] = useState('')
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout],
+    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout, YoutubeEmbed],
     content: '',
   })
 
