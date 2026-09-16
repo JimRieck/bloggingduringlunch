@@ -72,12 +72,15 @@
    win depending on import order, squeezing cards into ~150px columns
    in a panel that's only 480px wide. */
 .post-grid.search-post-grid {
-  /* Same .post-summary card RecentPosts.jsx uses on the main page, but
-     the search panel is much narrower than a full page -- one column
-     reads better than a cramped 2-3 column grid at that width. */
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
   padding: 0;
   gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .post-grid.search-post-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .post-card-note {
