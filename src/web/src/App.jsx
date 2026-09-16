@@ -4,6 +4,7 @@ import { AdminPanel } from './components/AdminPanel.jsx'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { ImportFromWordPress } from './components/ImportFromWordPress.jsx'
+import { LandingNav } from './components/LandingNav.jsx'
 import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
@@ -183,36 +184,12 @@ function App() {
   } else if (!session) {
     content = (
       <>
+        <LandingNav disabledNotice={disabledNotice} />
         <header id="site-header">
           <h1>Blogging During Lunch</h1>
           <p className="tagline">Short posts, written on a lunch break.</p>
         </header>
-        <div id="landing">
-          <section id="landing-feed">
-            <RecentPosts />
-          </section>
-          <section id="auth-panel">
-            <div id="pitch-strip">
-              <p className="pitch-copy">
-                A free technical blogging platform built for professional software
-                engineers. Write about what you shipped, what broke, and what you
-                learned — no CMS to wrestle with, no paywall, no ads. Just your
-                writing.
-              </p>
-              <ul className="pitch-points">
-                <li>Free for individual engineers, no catches</li>
-                <li>Built for technical writing — code blocks and all</li>
-                <li>Publish in minutes and own what you write</li>
-              </ul>
-            </div>
-            {disabledNotice && (
-              <p className="auth-notice" role="status">
-                Your account has been disabled.
-              </p>
-            )}
-            <AuthPanel />
-          </section>
-        </div>
+        <RecentPosts />
         <footer id="site-footer">
           <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
         </footer>

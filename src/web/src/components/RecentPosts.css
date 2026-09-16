@@ -2,7 +2,7 @@
   flex-grow: 1;
   padding: 32px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   align-content: start;
   gap: 24px;
   text-align: left;
@@ -37,6 +37,12 @@
      or a logo right up to the edge, and cropping to fill the frame was
      clipping that text instead of just trimming empty background. */
   object-fit: contain;
+}
+
+@media (max-width: 1024px) {
+  #recent-posts {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
