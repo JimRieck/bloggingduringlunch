@@ -1,4 +1,4 @@
-#recent-posts {
+.post-grid {
   flex-grow: 1;
   padding: 32px;
   display: grid;
@@ -8,7 +8,7 @@
   text-align: left;
 }
 
-#recent-posts .post-summary {
+.post-grid .post-summary {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px;
@@ -20,7 +20,7 @@
   color: var(--text);
 }
 
-#recent-posts .post-thumbnail-frame {
+.post-grid .post-thumbnail-frame {
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
@@ -29,7 +29,7 @@
   background: var(--accent-bg);
 }
 
-#recent-posts .post-thumbnail {
+.post-grid .post-thumbnail {
   display: block;
   width: 100%;
   height: 100%;
@@ -40,20 +40,20 @@
 }
 
 @media (max-width: 1024px) {
-  #recent-posts {
+  .post-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  #recent-posts {
+  .post-grid {
     grid-template-columns: 1fr;
     padding: 20px;
     gap: 20px;
   }
 }
 
-#recent-posts .recent-post-byline {
+.post-grid .recent-post-byline {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -62,12 +62,12 @@
   margin-bottom: 6px;
 }
 
-#recent-posts .recent-post-byline .avatar {
+.post-grid .recent-post-byline .avatar {
   width: 24px;
   height: 24px;
 }
 
-#recent-posts .recent-post-meta {
+.post-grid .recent-post-meta {
   display: flex;
   align-items: center;
   gap: 8px;
