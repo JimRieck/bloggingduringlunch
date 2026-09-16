@@ -13,6 +13,51 @@ function formatDate(iso) {
   })
 }
 
+// Two-step fetch, not an embed -- same reasoning as everywhere else in
+// this file: `categories`/`tags` have their own RLS, and PostgREST
+// embeds apply that RLS to the embedded side independently, which has
+// bitten this project before (see Search.jsx's history). Fetching the
+// join rows and the name lookups as two flat queries sidesteps that
+// entirely rather than relying on exactly how an embed interacts with
+// the (deliberately permissive-for-visible-posts) categories/tags
+// policies.
+async function loadCategoriesAndTags(postIds) {
+  if (postIds.length === 0) return { categoriesByPost: new Map(), tagsByPost: new Map() }
+
+  const [{ data: catLinks }, { data: tagLinks }] = await Promise.all([
+    supabase.from('post_categories').select('post_id, category_id').in('post_id', postIds),
+    supabase.from('post_tags').select('post_id, tag_id').in('post_id', postIds),
+  ])
+
+  const categoryIds = [...new Set((catLinks ?? []).map((r) => r.category_id))]
+  const tagIds = [...new Set((tagLinks ?? []).map((r) => r.tag_id))]
+
+  const [{ data: categoryRows }, { data: tagRows }] = await Promise.all([
+    categoryIds.length
+      ? supabase.from('categories').select('id, name').in('id', categoryIds)
+      : Promise.resolve({ data: [] }),
+    tagIds.length ? supabase.from('tags').select('id, name').in('id', tagIds) : Promise.resolve({ data: [] }),
+  ])
+
+  const categoryNameById = new Map((categoryRows ?? []).map((c) => [c.id, c.name]))
+  const tagNameById = new Map((tagRows ?? []).map((t) => [t.id, t.name]))
+
+  const categoriesByPost = new Map()
+  for (const link of catLinks ?? []) {
+    const name = categoryNameById.get(link.category_id)
+    if (!name) continue
+    categoriesByPost.set(link.post_id, [...(categoriesByPost.get(link.post_id) ?? []), name])
+  }
+  const tagsByPost = new Map()
+  for (const link of tagLinks ?? []) {
+    const name = tagNameById.get(link.tag_id)
+    if (!name) continue
+    tagsByPost.set(link.post_id, [...(tagsByPost.get(link.post_id) ?? []), name])
+  }
+
+  return { categoriesByPost, tagsByPost }
+}
+
 export function TenantBlog({ slug, postSlug, session }) {
   const [status, setStatus] = useState('loading')
   const [organization, setOrganization] = useState(null)
@@ -50,7 +95,13 @@ export function TenantBlog({ slug, postSlug, session }) {
           setStatus('post-not-found')
           return
         }
-        setPost(onePost)
+        const { categoriesByPost, tagsByPost } = await loadCategoriesAndTags([onePost.id])
+        if (cancelled) return
+        setPost({
+          ...onePost,
+          categories: categoriesByPost.get(onePost.id) ?? [],
+          tags: tagsByPost.get(onePost.id) ?? [],
+        })
         setStatus('ready')
         // Don't count the author's own visits -- RLS also enforces this
         // (see 20260908203258_exclude_author_from_post_views.sql), this
@@ -77,13 +128,22 @@ export function TenantBlog({ slug, postSlug, session }) {
 
       const { data: orgPosts } = await supabase
         .from('posts')
-        .select('title, slug, content, published_at, thumbnail_url')
+        .select('id, title, slug, content, published_at, thumbnail_url')
         .eq('organization_id', org.id)
         .eq('status', 'published')
         .order('published_at', { ascending: false })
 
       if (cancelled) return
-      setPosts(orgPosts ?? [])
+      const rows = orgPosts ?? []
+      const { categoriesByPost, tagsByPost } = await loadCategoriesAndTags(rows.map((p) => p.id))
+      if (cancelled) return
+      setPosts(
+        rows.map((p) => ({
+          ...p,
+          categories: categoriesByPost.get(p.id) ?? [],
+          tags: tagsByPost.get(p.id) ?? [],
+        })),
+      )
       setStatus('ready')
     }
 
@@ -143,6 +203,20 @@ export function TenantBlog({ slug, postSlug, session }) {
             )}
             <h2>{post.title}</h2>
             <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
+            {(post.categories.length > 0 || post.tags.length > 0) && (
+              <div className="post-taxonomy">
+                {post.categories.map((c) => (
+                  <span className="post-category-badge" key={c}>
+                    {c}
+                  </span>
+                ))}
+                {post.tags.map((t) => (
+                  <span className="post-tag-badge" key={t}>
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            )}
             <div
               className="post-body"
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
@@ -177,6 +251,20 @@ export function TenantBlog({ slug, postSlug, session }) {
                 <a href={`/blog/${slug}/${p.slug}`}>{p.title}</a>
               </h2>
               <time dateTime={p.published_at}>{formatDate(p.published_at)}</time>
+              {(p.categories.length > 0 || p.tags.length > 0) && (
+                <div className="post-taxonomy">
+                  {p.categories.map((c) => (
+                    <span className="post-category-badge" key={c}>
+                      {c}
+                    </span>
+                  ))}
+                  {p.tags.map((t) => (
+                    <span className="post-tag-badge" key={t}>
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div
                 className="post-body"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(p.content) }}
