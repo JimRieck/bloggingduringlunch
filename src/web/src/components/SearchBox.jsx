@@ -9,10 +9,27 @@ import './RecentPosts.css'
 
 const MIN_QUERY_LENGTH = 2
 const RESULT_LIMIT = 10
-const DEFAULT_POST_LIMIT = 20
-const DEFAULT_WINDOW_DAYS = 90
+// Bounds how many distinct searches stay cached at once -- FIFO eviction
+// via Map's insertion-order iteration, just enough to stop unbounded
+// growth in a long session without needing a real LRU for something this
+// small.
+const SEARCH_CACHE_LIMIT = 50
 
 const POST_COLUMNS = 'id, title, slug, published_at, thumbnail_url, organization_id, author_id'
+
+// Module-level, not component state, for the same reason as postMeta.js's
+// caches: every post across the whole site is now loaded for the default
+// browse view (no more 90-day window/20-post cap), so it's worth fetching
+// once per page load and reusing across remounts rather than re-querying
+// every time the component mounts.
+let defaultPostsCache = null
+
+// Keyed by the normalized (trimmed, lowercased) query string -- typing
+// "react", backspacing to "reac", then retyping "react" hits this
+// instead of re-running the whole multi-table search again. This is
+// what "caching mechanism" mainly refers to here; the org/author lookup
+// cache in postMeta.js is the other half of it.
+const searchCache = new Map()
 
 // The reusable search component -- used by the gated /search page
 // (Search.jsx, a thin wrapper around this) and directly as the logged-out
@@ -22,24 +39,23 @@ const POST_COLUMNS = 'id, title, slug, published_at, thumbnail_url, organization
 export function SearchBox({ autoFocus = false, wide = false }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null)
-  const [defaultPosts, setDefaultPosts] = useState(null)
+  const [defaultPosts, setDefaultPosts] = useState(defaultPostsCache)
 
-  // Browsed by default (no query yet), same window/limit RecentPosts.jsx
-  // uses on the main page, so search "just works" as a browse view too.
+  // Every published post across every author/org -- browsed by default
+  // (no query yet), so search doubles as a full browse view too.
   useEffect(() => {
+    if (defaultPostsCache) return
     let cancelled = false
     async function load() {
-      const windowStart = new Date(Date.now() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
       const { data: postRows } = await supabase
         .from('posts')
         .select(POST_COLUMNS)
         .eq('status', 'published')
-        .gte('published_at', windowStart)
         .order('published_at', { ascending: false })
-        .limit(DEFAULT_POST_LIMIT)
       if (cancelled) return
       const withMeta = await attachPostMeta(postRows ?? [])
       if (cancelled) return
+      defaultPostsCache = withMeta
       setDefaultPosts(withMeta)
     }
     load()
@@ -51,6 +67,11 @@ export function SearchBox({ autoFocus = false, wide = false }) {
   useEffect(() => {
     const trimmed = query.trim()
     if (trimmed.length < MIN_QUERY_LENGTH) return
+
+    const cacheKey = trimmed.toLowerCase()
+    // A cache hit is already reflected in `results` synchronously, from
+    // the onChange handler below -- nothing left to do here.
+    if (searchCache.has(cacheKey)) return
 
     let cancelled = false
     const timer = setTimeout(async () => {
@@ -120,14 +141,20 @@ export function SearchBox({ autoFocus = false, wide = false }) {
       const postsWithMeta = await attachPostMeta(mergedPosts)
       if (cancelled) return
 
-      setResults({
+      const resultsForQuery = {
         authors: authors.data ?? [],
         orgs: orgs.data ?? [],
         posts: postsWithMeta.map((p) => ({
           ...p,
           matchedVia: titlePostIds.has(p.id) ? null : matchLabelByPostId.get(p.id),
         })),
-      })
+      }
+
+      if (searchCache.size >= SEARCH_CACHE_LIMIT) {
+        searchCache.delete(searchCache.keys().next().value)
+      }
+      searchCache.set(cacheKey, resultsForQuery)
+      setResults(resultsForQuery)
     }, 300)
 
     return () => {
@@ -149,10 +176,17 @@ export function SearchBox({ autoFocus = false, wide = false }) {
         onChange={(e) => {
           const value = e.target.value
           setQuery(value)
-          // Cleared right here, in the event that caused it, rather
-          // than reactively in the effect below -- the effect only
-          // ever needs to decide whether to fetch, not reset state.
-          if (value.trim().length < MIN_QUERY_LENGTH) setResults(null)
+          // Both branches update state right here, in the event that
+          // caused them, rather than reactively in the effect below --
+          // that effect's only job left is the debounced network fetch
+          // for an actual cache miss.
+          const trimmed = value.trim()
+          if (trimmed.length < MIN_QUERY_LENGTH) {
+            setResults(null)
+            return
+          }
+          const cached = searchCache.get(trimmed.toLowerCase())
+          if (cached) setResults(cached)
         }}
         autoFocus={autoFocus}
       />
@@ -217,11 +251,11 @@ export function SearchBox({ autoFocus = false, wide = false }) {
 
       {!results && (
         <section className="search-section">
-          <h3>Recent posts</h3>
+          <h3>All posts</h3>
           {defaultPosts === null ? (
             <p className="search-status">Loading…</p>
           ) : defaultPosts.length === 0 ? (
-            <p className="search-status">No posts published in the last {DEFAULT_WINDOW_DAYS} days.</p>
+            <p className="search-status">No posts published yet.</p>
           ) : (
             <div className="post-grid search-post-grid">
               {defaultPosts.map((post) => (
