@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
 import { StarRating } from './StarRating.jsx'
@@ -63,6 +63,31 @@ export function TenantBlog({ slug, postSlug, session }) {
   const [organization, setOrganization] = useState(null)
   const [posts, setPosts] = useState([])
   const [post, setPost] = useState(null)
+  const bodyContainerRef = useRef(null)
+
+  // Post bodies are inserted via dangerouslySetInnerHTML, so a
+  // YoutubeEmbed node only ever survives sanitization as the inert
+  // placeholder div YoutubeEmbedExtension.js renders it as (see that
+  // file's comment) -- this hydrates each one into a real <iframe> via
+  // plain DOM APIs after React commits, never by trusting HTML the
+  // sanitizer approved. The video id is re-validated here too, even
+  // though only our own editor ever produces this markup.
+  useEffect(() => {
+    const container = bodyContainerRef.current
+    if (!container) return
+    for (const placeholder of container.querySelectorAll('[data-type="youtube-embed"]')) {
+      if (placeholder.querySelector('iframe')) continue
+      const videoId = placeholder.getAttribute('data-video-id')
+      if (!videoId || !/^[\w-]{6,20}$/.test(videoId)) continue
+      const iframe = document.createElement('iframe')
+      iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}`
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+      iframe.allowFullscreen = true
+      iframe.frameBorder = '0'
+      placeholder.classList.add('youtube-embed-wrapper')
+      placeholder.appendChild(iframe)
+    }
+  }, [post, posts])
 
   useEffect(() => {
     let cancelled = false
@@ -196,7 +221,7 @@ export function TenantBlog({ slug, postSlug, session }) {
           </a>
           <h1>{organization.name}</h1>
         </header>
-        <main id="tenant-posts">
+        <main id="tenant-posts" ref={bodyContainerRef}>
           <article className="post-summary">
             {post.thumbnail_url && (
               <img src={post.thumbnail_url} alt="" className="post-thumbnail" />
@@ -240,7 +265,7 @@ export function TenantBlog({ slug, postSlug, session }) {
         </a>
         <h1>{organization.name}</h1>
       </header>
-      <main id="tenant-posts">
+      <main id="tenant-posts" ref={bodyContainerRef}>
         {posts.length === 0 ? (
           <p className="tenant-empty">No posts published yet.</p>
         ) : (
