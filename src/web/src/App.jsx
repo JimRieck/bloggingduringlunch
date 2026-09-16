@@ -11,6 +11,7 @@ import { PostForm } from './components/PostForm.jsx'
 import { MyPosts } from './components/MyPosts.jsx'
 import { RecentPosts } from './components/RecentPosts.jsx'
 import { Search } from './components/Search.jsx'
+import { SearchBox } from './components/SearchBox.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
@@ -191,7 +192,9 @@ function App() {
           </h1>
           <p className="tagline">Short posts, written on a lunch break.</p>
         </header>
-        <RecentPosts />
+        <main id="landing-search">
+          <SearchBox wide />
+        </main>
         <footer id="site-footer">
           <p>&copy; {new Date().getFullYear()} Blogging During Lunch</p>
         </footer>
