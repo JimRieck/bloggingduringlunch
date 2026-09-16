@@ -32,15 +32,11 @@
 }
 
 .site-logo {
-  height: 56px;
+  /* Scales with viewport width instead of one fixed size -- was 56px
+     everywhere, which read as tiny on a wide desktop screen. */
+  height: clamp(48px, 8vw, 110px);
   width: auto;
   max-width: 100%;
-}
-
-@media (max-width: 768px) {
-  .site-logo {
-    height: 40px;
-  }
 }
 
 .tagline {
