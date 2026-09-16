@@ -134,7 +134,7 @@ function EditorToolbar({ editor, onInsertImage }) {
 export function PostForm({ session, postId, onSaved }) {
   const [membership, setMembership] = useState(undefined)
   const [post, setPost] = useState(undefined)
-  const [loadedIntoEditor, setLoadedIntoEditor] = useState(false)
+  const [loadedPost, setLoadedPost] = useState(null)
   const [title, setTitle] = useState('')
   const [thumbnailUrl, setThumbnailUrl] = useState(null)
   const [pickerTarget, setPickerTarget] = useState(null)
@@ -176,13 +176,28 @@ export function PostForm({ session, postId, onSaved }) {
       .then(({ data }) => setPost(data ?? null))
   }, [postId])
 
-  useEffect(() => {
-    if (!postId || !post || !editor || loadedIntoEditor) return
+  // React's own recommended pattern for "reset/derive some state when
+  // an async value changes" (see "Adjusting state when a prop changes"
+  // in the React docs) -- adjusting state during render, rather than in
+  // a useEffect, re-renders synchronously with no extra commit, and
+  // doesn't trip the "don't setState synchronously inside an effect"
+  // warning that doing this in an effect would.
+  if (postId && post && post !== loadedPost) {
+    setLoadedPost(post)
     setTitle(post.title)
     setThumbnailUrl(post.thumbnail_url)
-    editor.commands.setContent(post.content)
-    setLoadedIntoEditor(true)
-  }, [post, editor, postId, loadedIntoEditor])
+  }
+
+  // The one piece that genuinely has to be an effect: editor.commands.
+  // setContent is an imperative call into Tiptap's own external editor
+  // instance, which can't happen during React's render phase. Runs
+  // exactly once, whenever both the editor and the post state adjusted
+  // above are ready -- neither changes again afterward, so this doesn't
+  // re-fire on every render.
+  useEffect(() => {
+    if (!editor || !loadedPost) return
+    editor.commands.setContent(loadedPost.content)
+  }, [editor, loadedPost])
 
   const organizationId = postId ? post?.organization_id : membership?.organizations?.id
   const organizationName = postId ? post?.organizations?.name : membership?.organizations?.name
