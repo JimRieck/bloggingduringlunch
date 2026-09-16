@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Avatar } from './Avatar.jsx'
+import { PostCard } from './PostCard.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { attachPostMeta } from '../lib/postMeta.js'
 import { getTenantUrl } from '../lib/tenant.js'
 import './SearchBox.css'
+import './RecentPosts.css'
 
 const MIN_QUERY_LENGTH = 2
 const RESULT_LIMIT = 10
+const DEFAULT_POST_LIMIT = 20
+const DEFAULT_WINDOW_DAYS = 90
+
+const POST_COLUMNS = 'id, title, slug, published_at, thumbnail_url, organization_id, author_id'
 
 // The reusable search component -- used both by the gated /search page
 // (Search.jsx, a thin wrapper around this) and embedded directly on the
@@ -13,6 +20,31 @@ const RESULT_LIMIT = 10
 export function SearchBox({ autoFocus = false }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null)
+  const [defaultPosts, setDefaultPosts] = useState(null)
+
+  // Browsed by default (no query yet), same window/limit RecentPosts.jsx
+  // uses on the main page, so search "just works" as a browse view too.
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const windowStart = new Date(Date.now() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
+      const { data: postRows } = await supabase
+        .from('posts')
+        .select(POST_COLUMNS)
+        .eq('status', 'published')
+        .gte('published_at', windowStart)
+        .order('published_at', { ascending: false })
+        .limit(DEFAULT_POST_LIMIT)
+      if (cancelled) return
+      const withMeta = await attachPostMeta(postRows ?? [])
+      if (cancelled) return
+      setDefaultPosts(withMeta)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const trimmed = query.trim()
@@ -31,7 +63,7 @@ export function SearchBox({ autoFocus = false }) {
         supabase.from('organizations_public').select('id, name, slug').ilike('name', like).limit(RESULT_LIMIT),
         supabase
           .from('posts')
-          .select('id, title, slug, published_at, organization_id')
+          .select(POST_COLUMNS)
           .eq('status', 'published')
           .ilike('title', like)
           .order('published_at', { ascending: false })
@@ -76,36 +108,21 @@ export function SearchBox({ autoFocus = false }) {
       const titlePostIds = new Set((titleMatches.data ?? []).map((p) => p.id))
       const extraPostIds = [...matchLabelByPostId.keys()].filter((id) => !titlePostIds.has(id))
       const { data: extraPosts } = extraPostIds.length
-        ? await supabase
-            .from('posts')
-            .select('id, title, slug, published_at, organization_id')
-            .eq('status', 'published')
-            .in('id', extraPostIds)
+        ? await supabase.from('posts').select(POST_COLUMNS).eq('status', 'published').in('id', extraPostIds)
         : { data: [] }
       if (cancelled) return
 
-      const allPosts = [...(titleMatches.data ?? []), ...(extraPosts ?? [])].sort(
+      const mergedPosts = [...(titleMatches.data ?? []), ...(extraPosts ?? [])].sort(
         (a, b) => new Date(b.published_at) - new Date(a.published_at),
       )
-
-      // Posts can't embed `organizations` directly -- that table's RLS
-      // only allows a member to see their own org, so a post whose
-      // author is in a different org than the searcher would silently
-      // come back with organizations: null and crash the render.
-      // organizations_public has no such restriction; join client-side.
-      const orgIds = [...new Set(allPosts.map((p) => p.organization_id))]
-      const { data: postOrgs } = orgIds.length
-        ? await supabase.from('organizations_public').select('id, name, slug').in('id', orgIds)
-        : { data: [] }
-      const orgById = new Map((postOrgs ?? []).map((o) => [o.id, o]))
-
+      const postsWithMeta = await attachPostMeta(mergedPosts)
       if (cancelled) return
+
       setResults({
         authors: authors.data ?? [],
         orgs: orgs.data ?? [],
-        posts: allPosts.map((p) => ({
+        posts: postsWithMeta.map((p) => ({
           ...p,
-          organization: orgById.get(p.organization_id),
           matchedVia: titlePostIds.has(p.id) ? null : matchLabelByPostId.get(p.id),
         })),
       })
@@ -182,24 +199,38 @@ export function SearchBox({ autoFocus = false }) {
       {results && results.posts.length > 0 && (
         <section className="search-section">
           <h3>Posts</h3>
-          {results.posts.map((post) =>
-            post.organization ? (
-              <a
-                className="search-result"
-                href={getTenantUrl(post.organization.slug, post.slug)}
-                target="_blank"
-                rel="noopener noreferrer"
+          <div className="post-grid search-post-grid">
+            {results.posts.map((post) => (
+              <PostCard
                 key={post.id}
-              >
-                <div>
-                  <div className="search-result-title">{post.title}</div>
-                  <div className="search-result-meta">
-                    {post.organization.name}
-                    {post.matchedVia && <span className="search-match-badge">matched: {post.matchedVia}</span>}
-                  </div>
-                </div>
-              </a>
-            ) : null,
+                post={post}
+                href={getTenantUrl(post.organization.slug, post.slug)}
+                newTab
+                note={post.matchedVia ? `matched: ${post.matchedVia}` : null}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!results && (
+        <section className="search-section">
+          <h3>Recent posts</h3>
+          {defaultPosts === null ? (
+            <p className="search-status">Loading…</p>
+          ) : defaultPosts.length === 0 ? (
+            <p className="search-status">No posts published in the last {DEFAULT_WINDOW_DAYS} days.</p>
+          ) : (
+            <div className="post-grid search-post-grid">
+              {defaultPosts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  href={getTenantUrl(post.organization.slug, post.slug)}
+                  newTab
+                />
+              ))}
+            </div>
           )}
         </section>
       )}

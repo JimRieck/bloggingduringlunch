@@ -66,8 +66,19 @@
   gap: 8px;
 }
 
-.search-match-badge {
+.search-post-grid {
+  /* Same .post-summary card RecentPosts.jsx uses on the main page, but
+     the search panel is much narrower than a full page -- one column
+     reads better than a cramped 2-3 column grid at that width. */
+  grid-template-columns: 1fr;
+  padding: 0;
+  gap: 16px;
+}
+
+.post-card-note {
+  margin-top: 8px;
   font-size: 12px;
+  display: inline-block;
   padding: 2px 8px;
   border-radius: 10px;
   background: var(--accent-bg);
