@@ -522,7 +522,9 @@ export function PostForm({ session, postId, onSaved }) {
       setError(
         reason === 'not_configured'
           ? 'Generating images isn’t configured yet.'
-          : 'Couldn’t generate an image. Try again.',
+          : reason === 'insufficient_credits'
+            ? 'The OpenAI account behind image generation has no credits left. Add billing at platform.openai.com, then try again.'
+            : 'Couldn’t generate an image. Try again.',
       )
       return
     }

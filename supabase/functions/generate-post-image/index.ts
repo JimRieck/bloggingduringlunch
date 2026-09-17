@@ -41,12 +41,25 @@ Write ONE concise visual description (2-3 sentences) for a hero image that captu
 async function generateImage(description: string, apiKey: string): Promise<Uint8Array> {
   const openai = new OpenAI({ apiKey })
 
-  const result = await openai.images.generate({
-    model: IMAGE_MODEL,
-    prompt: description,
-    size: '1536x1024',
-    n: 1,
-  })
+  let result
+  try {
+    result = await openai.images.generate({
+      model: IMAGE_MODEL,
+      prompt: description,
+      size: '1536x1024',
+      n: 1,
+    })
+  } catch (err) {
+    // A valid-but-unfunded OpenAI key is a genuinely common setup gap
+    // (a fresh key works for nothing at all until billing is added) --
+    // worth a distinct, actionable error rather than the generic
+    // catch-all below.
+    const code = (err as { code?: string; type?: string })?.code ?? (err as { type?: string })?.type
+    if (code === 'insufficient_quota' || code === 'credit_balance_exhausted') {
+      throw new Error('insufficient_credits')
+    }
+    throw err
+  }
 
   const b64 = result.data?.[0]?.b64_json
   if (!b64) throw new Error('no_image_in_response')
@@ -91,7 +104,10 @@ Deno.serve(async (req) => {
   try {
     const description = await describeImage(title, content, anthropicKey)
     imageBytes = await generateImage(description, openaiKey)
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === 'insufficient_credits') {
+      return json({ error: 'insufficient_credits' }, 502)
+    }
     return json({ error: 'generation_failed' }, 502)
   }
 
