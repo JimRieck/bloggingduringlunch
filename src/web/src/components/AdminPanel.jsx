@@ -4,10 +4,26 @@ import { SiteStats } from './SiteStats.jsx'
 import './UserDirectory.css'
 import './AdminPanel.css'
 
+// Human-readable labels for feature_flags.key -- one row per AI feature,
+// same six keys the client checks via useFeatureFlags() and every AI
+// Edge Function checks server-side (src/web/src/lib/featureFlags.js,
+// supabase/functions/_shared/featureFlags.ts).
+const FEATURE_FLAG_LABELS = {
+  ai_tag_generation: 'AI tag generation',
+  ai_category_generation: 'AI category generation',
+  ai_title_generation: 'AI title generation',
+  ai_body_generation: 'AI post draft generation',
+  ai_image_generation: 'AI image generation',
+  ai_bulk_auto_tag: 'Bulk auto-tag (Auto-tag posts menu)',
+}
+
 export function AdminPanel({ session }) {
   const [users, setUsers] = useState(null)
   const [error, setError] = useState('')
   const [pendingId, setPendingId] = useState(null)
+  const [flags, setFlags] = useState(null)
+  const [flagsError, setFlagsError] = useState('')
+  const [pendingFlagKey, setPendingFlagKey] = useState(null)
 
   function load() {
     supabase
@@ -19,7 +35,31 @@ export function AdminPanel({ session }) {
 
   useEffect(() => {
     load()
+    supabase
+      .from('feature_flags')
+      .select('key, enabled')
+      .order('key')
+      .then(({ data }) => setFlags(data ?? []))
   }, [])
+
+  // Direct table update, not an Edge Function -- the "Site admins can
+  // update feature flags" RLS policy (is_site_admin()) is already the
+  // only check this needs, same as any other RLS-protected write in
+  // this app.
+  async function toggleFlag(flag) {
+    setFlagsError('')
+    setPendingFlagKey(flag.key)
+    const { error: updateError } = await supabase
+      .from('feature_flags')
+      .update({ enabled: !flag.enabled, updated_at: new Date().toISOString() })
+      .eq('key', flag.key)
+    setPendingFlagKey(null)
+    if (updateError) {
+      setFlagsError(`Couldn't update ${FEATURE_FLAG_LABELS[flag.key] ?? flag.key}. Try again.`)
+      return
+    }
+    setFlags((current) => current.map((f) => (f.key === flag.key ? { ...f, enabled: !f.enabled } : f)))
+  }
 
   async function toggleDisabled(user) {
     setError('')
@@ -49,6 +89,48 @@ export function AdminPanel({ session }) {
     <div id="directory">
       <h1>Site admin</h1>
       <SiteStats />
+
+      <h2>Feature flags</h2>
+      {flagsError && (
+        <p className="field-error" role="alert">
+          {flagsError}
+        </p>
+      )}
+      <div className="directory-table-wrap">
+        <table className="directory-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {(flags ?? []).map((flag) => (
+              <tr key={flag.key}>
+                <td>{FEATURE_FLAG_LABELS[flag.key] ?? flag.key}</td>
+                <td>
+                  <span className={`admin-status-badge ${flag.enabled ? 'active' : 'disabled'}`}>
+                    {flag.enabled ? 'on' : 'off'}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => toggleFlag(flag)}
+                    disabled={pendingFlagKey === flag.key}
+                  >
+                    {pendingFlagKey === flag.key ? 'Working…' : flag.enabled ? 'Turn off' : 'Turn on'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Users</h2>
       {error && (
         <p className="field-error" role="alert">
           {error}
