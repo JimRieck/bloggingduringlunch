@@ -50,7 +50,8 @@ export function BulkAutoTag({ session }) {
   const [error, setError] = useState('')
   const stopRef = useRef(false)
   const featureFlags = useFeatureFlags()
-  const featureEnabled = featureFlags.ai_tag_generation || featureFlags.ai_category_generation
+  const featureEnabled =
+    featureFlags.ai_bulk_auto_tag && (featureFlags.ai_tag_generation || featureFlags.ai_category_generation)
 
   useEffect(() => {
     let cancelled = false

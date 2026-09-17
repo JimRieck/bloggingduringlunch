@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useFeatureFlags } from '../lib/featureFlags.js'
 import { Avatar } from './Avatar.jsx'
 import { ProfileImageModal } from './ProfileImageModal.jsx'
 import { InviteMemberModal } from './InviteMemberModal.jsx'
@@ -31,6 +32,7 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, canImpo
   const [showImageModal, setShowImageModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const showLabels = !collapsed || mobileOpen
+  const featureFlags = useFeatureFlags()
 
   function toggle() {
     const next = !collapsed
@@ -118,7 +120,7 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, canImpo
               {showLabels && <span>Import from WordPress</span>}
             </a>
           )}
-          {canImport && (
+          {canImport && featureFlags.ai_bulk_auto_tag && (
             <a href="/posts/bulk-tag" title="Auto-tag posts">
               <span className="nav-icon" aria-hidden="true">
                 ✨
