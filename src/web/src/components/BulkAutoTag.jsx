@@ -93,20 +93,32 @@ export function BulkAutoTag({ session }) {
     }
   }, [session.user.id])
 
+  // `categoriesByOrgRef`/`authorTagsRef` are passed in and mutated in
+  // place, rather than read from categoriesByOrg/authorTags state --
+  // handleAutoTagAll's loop calls this many times in a row without ever
+  // yielding back to a React render, so a version reading state
+  // directly would see the SAME pre-loop snapshot on every iteration
+  // (setState from iteration 1 doesn't retroactively update the
+  // closure iteration 2 is already running with). That's exactly what
+  // was letting the AI re-suggest and re-create the same category on
+  // every post in a bulk run, piling up literal duplicates in the DB.
+  //
   // Additive only -- never removes a category/tag that's already
   // attached, so this is safe to run without a per-post review step
   // (the "as easy as clicking a button" bulk mode). Returns false on
   // failure so callers can tally it without throwing mid-batch.
-  async function autoTagOne(post) {
+  async function autoTagOne(post, categoriesByOrgRef, authorTagsRef) {
     setRowStatus((s) => ({ ...s, [post.id]: 'working' }))
 
-    const existingCategories = categoriesByOrg.get(post.organization_id) ?? []
+    if (!categoriesByOrgRef.has(post.organization_id)) categoriesByOrgRef.set(post.organization_id, [])
+    const existingCategories = categoriesByOrgRef.get(post.organization_id)
+
     const { data, error: suggestError } = await supabase.functions.invoke('suggest-tags-and-categories', {
       body: {
         title: post.title,
         content: (post.content || '').replace(/<[^>]+>/g, ' '),
         existingCategories: existingCategories.map((c) => c.name),
-        existingTags: authorTags.map((t) => t.name),
+        existingTags: authorTagsRef.map((t) => t.name),
       },
     })
     if (suggestError || data?.error) {
@@ -117,13 +129,13 @@ export function BulkAutoTag({ session }) {
     const existingCategoryIds = new Set(post.categories.map((c) => c.id))
     const existingTagIds = new Set(post.tags.map((t) => t.id))
 
-    const categoriesCopy = [...existingCategories]
+    // resolveCategoryIds/resolveTagIds mutate existingCategories/
+    // authorTagsRef in place (appending any newly-created row), so the
+    // caller's ref is what actually accumulates state across the loop.
     const newCategoryIds = (
-      await resolveCategoryIds(data.categories ?? [], post.organization_id, categoriesCopy)
+      await resolveCategoryIds(data.categories ?? [], post.organization_id, existingCategories)
     ).filter((id) => !existingCategoryIds.has(id))
-
-    const tagsCopy = [...authorTags]
-    const newTagIds = (await resolveTagIds(data.tags ?? [], session.user.id, tagsCopy)).filter(
+    const newTagIds = (await resolveTagIds(data.tags ?? [], session.user.id, authorTagsRef)).filter(
       (id) => !existingTagIds.has(id),
     )
 
@@ -136,11 +148,8 @@ export function BulkAutoTag({ session }) {
       await supabase.from('post_tags').insert(newTagIds.map((tag_id) => ({ post_id: post.id, tag_id })))
     }
 
-    setCategoriesByOrg((current) => new Map(current).set(post.organization_id, categoriesCopy))
-    setAuthorTags(tagsCopy)
-
-    const addedCategories = categoriesCopy.filter((c) => newCategoryIds.includes(c.id))
-    const addedTags = tagsCopy.filter((t) => newTagIds.includes(t.id))
+    const addedCategories = existingCategories.filter((c) => newCategoryIds.includes(c.id))
+    const addedTags = authorTagsRef.filter((t) => newTagIds.includes(t.id))
     setPosts((current) =>
       current.map((p) =>
         p.id === post.id
@@ -152,9 +161,17 @@ export function BulkAutoTag({ session }) {
     return true
   }
 
+  function cloneCategoriesByOrg() {
+    return new Map([...categoriesByOrg].map(([orgId, rows]) => [orgId, [...rows]]))
+  }
+
   async function handleAutoTagOne(post) {
     setError('')
-    await autoTagOne(post)
+    const categoriesByOrgLocal = cloneCategoriesByOrg()
+    const authorTagsLocal = [...authorTags]
+    await autoTagOne(post, categoriesByOrgLocal, authorTagsLocal)
+    setCategoriesByOrg(categoriesByOrgLocal)
+    setAuthorTags(authorTagsLocal)
   }
 
   async function handleAutoTagAll() {
@@ -163,14 +180,22 @@ export function BulkAutoTag({ session }) {
     stopRef.current = false
     setProgress({ done: 0, total: posts.length })
 
+    // Local for the whole run, synced to state only once at the end --
+    // see the comment on autoTagOne for why reading categoriesByOrg/
+    // authorTags state directly inside this loop was the actual bug.
+    const categoriesByOrgLocal = cloneCategoriesByOrg()
+    const authorTagsLocal = [...authorTags]
+
     let failed = 0
     for (const post of posts) {
       if (stopRef.current) break
-      const ok = await autoTagOne(post)
+      const ok = await autoTagOne(post, categoriesByOrgLocal, authorTagsLocal)
       if (!ok) failed += 1
       setProgress((prog) => ({ done: (prog?.done ?? 0) + 1, total: posts.length }))
     }
 
+    setCategoriesByOrg(categoriesByOrgLocal)
+    setAuthorTags(authorTagsLocal)
     setRunning(false)
     setProgress(null)
     if (failed > 0) {

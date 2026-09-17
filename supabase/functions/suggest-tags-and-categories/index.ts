@@ -31,6 +31,13 @@ async function suggest(
 ): Promise<{ categories: string[]; tags: string[] }> {
   const anthropic = new Anthropic({ apiKey })
 
+  // Deduped -- a caller passing a raw (possibly duplicated) list would
+  // otherwise make a repeated name look artificially prominent/"safe"
+  // to the model, biasing it toward suggesting that name regardless of
+  // whether it actually fits this specific post.
+  const uniqueCategories = [...new Set(existingCategories)]
+  const uniqueTags = [...new Set(existingTags)]
+
   const prompt = `You suggest categories and tags for a blog post, for a technical blogging platform.
 
 Post title: ${title}
@@ -38,10 +45,10 @@ Post title: ${title}
 Post content:
 ${content.slice(0, MAX_CONTENT_CHARS)}
 
-This blog's existing categories: ${existingCategories.length ? existingCategories.join(', ') : '(none yet)'}
-This author's existing tags: ${existingTags.length ? existingTags.join(', ') : '(none yet)'}
+This blog's existing categories: ${uniqueCategories.length ? uniqueCategories.join(', ') : '(none yet)'}
+This author's existing tags: ${uniqueTags.length ? uniqueTags.join(', ') : '(none yet)'}
 
-Suggest 1-2 categories (broad topic areas) and 3-6 tags (more specific keywords) for this post. Prefer reusing an existing category/tag name when it genuinely fits; only propose a new one when nothing existing does.
+Suggest 1-2 categories (broad topic areas) and 3-6 tags (more specific keywords), based specifically on what THIS post is actually about -- not on which existing category shows up most often or seems like a safe default. Only reuse an existing category/tag name when it's a genuine, specific match for this post's content; propose a new, more precise one instead of forcing a loose fit.
 
 Respond with ONLY a JSON object, no other text, in exactly this shape:
 {"categories": ["..."], "tags": ["..."]}`
