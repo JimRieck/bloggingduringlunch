@@ -1,19 +1,13 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
 import Anthropic from 'npm:@anthropic-ai/sdk@0.32'
 import { corsHeaders } from '../_shared/cors.ts'
+import { json } from '../_shared/response.ts'
+import { getCaller } from '../_shared/auth.ts'
 
 // A cheap/fast model is plenty for "read a post, suggest some tags" --
 // this isn't a reasoning task, and it may run once per post across a
 // whole backlog in the bulk-tag flow.
 const MODEL = 'claude-haiku-4-5-20251001'
 const MAX_CONTENT_CHARS = 4000
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
 
 // Suggestion-only -- this function never touches the database. Creating
 // the actual category/tag rows and attaching them to a post happens
@@ -77,21 +71,7 @@ Deno.serve(async (req) => {
     return json({ error: 'method_not_allowed' }, 405)
   }
 
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
-    return json({ error: 'unauthorized' }, 401)
-  }
-
-  // Just needs *a* logged-in caller -- nothing is written here, so
-  // there's no org/editor check to make (unlike rehost-post-images).
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-  const callerClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  })
-  const {
-    data: { user: caller },
-  } = await callerClient.auth.getUser()
+  const caller = await getCaller(req)
   if (!caller) {
     return json({ error: 'unauthorized' }, 401)
   }

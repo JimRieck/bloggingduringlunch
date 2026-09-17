@@ -9,6 +9,22 @@
   margin-bottom: 24px;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  input[type='text'] {
+    flex: 1;
+    min-width: 0;
+  }
+
+  button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
 .post-form-status {
   max-width: 720px;
   margin: 0 auto;
