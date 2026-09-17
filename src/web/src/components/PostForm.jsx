@@ -154,10 +154,23 @@ export function PostForm({ session, postId, onSaved }) {
   const [suggesting, setSuggesting] = useState(false)
   const [titleSuggestOpen, setTitleSuggestOpen] = useState(false)
   const [generatePostOpen, setGeneratePostOpen] = useState(false)
+  const [generatingImage, setGeneratingImage] = useState(false)
 
   const editor = useEditor({
     extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout, YoutubeEmbed],
     content: '',
+  })
+
+  // Reactive, unlike reading editor.isEmpty directly in the render body:
+  // useEditor alone doesn't re-render this component on every keystroke
+  // (EditorToolbar's own active-button states need the same
+  // useEditorState subscription for the same reason) -- without this,
+  // Suggest titles/Generate Image would stay stuck showing whatever
+  // isEmpty was on PostForm's last render for some unrelated reason,
+  // not the body's actual current state.
+  const isBodyEmpty = useEditorState({
+    editor,
+    selector: ({ editor }) => !editor || editor.isEmpty,
   })
 
   useEffect(() => {
@@ -483,6 +496,39 @@ export function PostForm({ session, postId, onSaved }) {
     setPickerTarget(null)
   }
 
+  // No popup needed here, unlike title suggestions (a list to choose
+  // from) -- there's only one sensible input (whatever's already
+  // written), so this applies its result directly, same shape as
+  // handleAutoSuggest.
+  async function handleGenerateImage() {
+    if (!editor || editor.isEmpty || !organizationId) return
+    setError('')
+    setGeneratingImage(true)
+
+    const { data, error: generateError } = await supabase.functions.invoke('generate-post-image', {
+      body: { organizationId, title: title.trim(), content: editor.getText() },
+    })
+    setGeneratingImage(false)
+
+    if (generateError || data?.error) {
+      let reason = data?.error
+      if (!reason && generateError?.context) {
+        try {
+          reason = (await generateError.context.json())?.error
+        } catch {
+          // context wasn't JSON, or already consumed -- fall through
+        }
+      }
+      setError(
+        reason === 'not_configured'
+          ? 'Generating images isn’t configured yet.'
+          : 'Couldn’t generate an image. Try again.',
+      )
+      return
+    }
+    setThumbnailUrl(data.url)
+  }
+
   // Confirms before clobbering existing work -- the modal itself just
   // reports the generated HTML back up, since only this component knows
   // whether the body already has content worth protecting.
@@ -531,8 +577,8 @@ export function PostForm({ session, postId, onSaved }) {
             type="button"
             className="ai-action-button"
             onClick={() => setTitleSuggestOpen(true)}
-            disabled={!editor || editor.isEmpty}
-            title={!editor || editor.isEmpty ? 'Write something in the body first' : 'Suggest titles based on the body'}
+            disabled={isBodyEmpty}
+            title={isBodyEmpty ? 'Write something in the body first' : 'Suggest titles based on the body'}
           >
             ✨ Suggest titles
           </button>
@@ -543,7 +589,18 @@ export function PostForm({ session, postId, onSaved }) {
         {thumbnailUrl && <img src={thumbnailUrl} alt="" className="thumbnail-preview" />}
         <div className="thumbnail-actions">
           <button type="button" className="link" onClick={() => setPickerTarget('thumbnail')}>
+            <img src="/icons/image.svg" alt="" />
             {thumbnailUrl ? 'Change image' : 'Choose image'}
+          </button>
+          <button
+            type="button"
+            className="ai-action-button"
+            onClick={handleGenerateImage}
+            disabled={generatingImage || isBodyEmpty}
+            title={isBodyEmpty ? 'Write something in the body first' : 'Generate an image based on the body'}
+          >
+            <img src="/icons/sparkles.svg" alt="" />
+            {generatingImage ? 'Generating image…' : 'Generate Image'}
           </button>
           {thumbnailUrl && (
             <button type="button" className="link" onClick={() => setThumbnailUrl(null)}>
