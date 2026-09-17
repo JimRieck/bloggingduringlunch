@@ -8,6 +8,8 @@ import { Callout } from '../lib/CalloutExtension.js'
 import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
 import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { ImagePicker } from './ImagePicker.jsx'
+import { TitleSuggestModal } from './TitleSuggestModal.jsx'
+import { GeneratePostModal } from './GeneratePostModal.jsx'
 import './PostForm.css'
 
 // Accepts a full YouTube URL (watch/embed/youtu.be, with or without
@@ -150,6 +152,8 @@ export function PostForm({ session, postId, onSaved }) {
   const [tagChips, setTagChips] = useState([])
   const [tagInput, setTagInput] = useState('')
   const [suggesting, setSuggesting] = useState(false)
+  const [titleSuggestOpen, setTitleSuggestOpen] = useState(false)
+  const [generatePostOpen, setGeneratePostOpen] = useState(false)
 
   const editor = useEditor({
     extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout, YoutubeEmbed],
@@ -479,6 +483,20 @@ export function PostForm({ session, postId, onSaved }) {
     setPickerTarget(null)
   }
 
+  // Confirms before clobbering existing work -- the modal itself just
+  // reports the generated HTML back up, since only this component knows
+  // whether the body already has content worth protecting.
+  function handleGeneratedContent(content) {
+    if (
+      !editor.isEmpty &&
+      !window.confirm('Replace the current body with this generated draft? This can’t be undone.')
+    ) {
+      return
+    }
+    editor.commands.setContent(content)
+    setGeneratePostOpen(false)
+  }
+
   if (postId) {
     if (post === undefined) return <p className="post-form-status">Loading…</p>
     if (post === null) {
@@ -500,15 +518,26 @@ export function PostForm({ session, postId, onSaved }) {
       <h2>
         {postId ? 'Edit post' : 'New post'} — {organizationName}
       </h2>
-      <label className="field">
+      <div className="field">
         <span>Title</span>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="What are you writing about?"
-        />
-      </label>
+        <div className="title-row">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What are you writing about?"
+          />
+          <button
+            type="button"
+            className="link"
+            onClick={() => setTitleSuggestOpen(true)}
+            disabled={!editor || editor.isEmpty}
+            title={!editor || editor.isEmpty ? 'Write something in the body first' : 'Suggest titles based on the body'}
+          >
+            ✨ Suggest titles
+          </button>
+        </div>
+      </div>
       <div className="field">
         <span>Thumbnail (optional)</span>
         {thumbnailUrl && <img src={thumbnailUrl} alt="" className="thumbnail-preview" />}
@@ -615,6 +644,11 @@ export function PostForm({ session, postId, onSaved }) {
         </div>
       )}
       <div className="field">
+        <button type="button" className="link" onClick={() => setGeneratePostOpen(true)}>
+          ✨ Generate post from description
+        </button>
+      </div>
+      <div className="field">
         <span>Body</span>
         <div className="editor-shell">
           <EditorToolbar editor={editor} onInsertImage={() => setPickerTarget('inline')} />
@@ -646,6 +680,19 @@ export function PostForm({ session, postId, onSaved }) {
           onSelect={handleImageSelected}
           onClose={() => setPickerTarget(null)}
         />
+      )}
+      {titleSuggestOpen && (
+        <TitleSuggestModal
+          content={editor.getText()}
+          onSelect={(t) => {
+            setTitle(t)
+            setTitleSuggestOpen(false)
+          }}
+          onClose={() => setTitleSuggestOpen(false)}
+        />
+      )}
+      {generatePostOpen && (
+        <GeneratePostModal onGenerated={handleGeneratedContent} onClose={() => setGeneratePostOpen(false)} />
       )}
     </div>
   )
