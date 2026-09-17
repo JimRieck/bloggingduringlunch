@@ -25,6 +25,31 @@
   }
 }
 
+.ai-action-button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-border);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 .post-form-status {
   max-width: 720px;
   margin: 0 auto;
