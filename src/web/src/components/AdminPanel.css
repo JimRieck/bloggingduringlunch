@@ -22,3 +22,66 @@
   font-size: 13px;
   color: var(--text);
 }
+
+/* 44x44 tap target (the CLAUDE.md-mandated minimum) wrapping a visually
+   slimmer 40x22 track, rather than making the track itself that tall --
+   the input covers the whole label, the track is just centered inside
+   it. */
+.flag-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.flag-toggle input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.flag-toggle input:disabled {
+  cursor: not-allowed;
+}
+
+.flag-toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  pointer-events: none;
+}
+
+.flag-toggle-track::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.flag-toggle input:checked + .flag-toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.flag-toggle input:checked + .flag-toggle-track::before {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+.flag-toggle input:disabled + .flag-toggle-track {
+  opacity: 0.5;
+}
