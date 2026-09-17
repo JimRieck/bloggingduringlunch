@@ -117,8 +117,6 @@ export function SiteStats() {
 
   return (
     <section id="site-stats">
-      <h2>Site traffic</h2>
-
       <div className="my-stats-filters">
         <label className="my-stats-field">
           <span>Start date</span>

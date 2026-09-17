@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { SiteStats } from './SiteStats.jsx'
+import { Accordion } from './Accordion.jsx'
 import './UserDirectory.css'
 import './AdminPanel.css'
 
@@ -88,92 +89,97 @@ export function AdminPanel({ session }) {
   return (
     <div id="directory">
       <h1>Site admin</h1>
-      <SiteStats />
 
-      <h2>Feature flags</h2>
-      {flagsError && (
-        <p className="field-error" role="alert">
-          {flagsError}
-        </p>
-      )}
-      <div className="directory-table-wrap">
-        <table className="directory-table">
-          <thead>
-            <tr>
-              <th>Feature</th>
-              <th>Enabled</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(flags ?? []).map((flag) => (
-              <tr key={flag.key}>
-                <td>{FEATURE_FLAG_LABELS[flag.key] ?? flag.key}</td>
-                <td>
-                  <label className="flag-toggle">
-                    <input
-                      type="checkbox"
-                      checked={flag.enabled}
-                      disabled={pendingFlagKey === flag.key}
-                      onChange={() => toggleFlag(flag)}
-                      aria-label={`${flag.enabled ? 'Disable' : 'Enable'} ${FEATURE_FLAG_LABELS[flag.key] ?? flag.key}`}
-                    />
-                    <span className="flag-toggle-track" aria-hidden="true" />
-                  </label>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Accordion title="Site traffic">
+        <SiteStats />
+      </Accordion>
 
-      <h2>Users</h2>
-      {error && (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="directory-table-wrap">
-        <table className="directory-table">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>
-                  <div className="directory-name">{user.display_name || '—'}</div>
-                  <div className="directory-email">{user.email}</div>
-                </td>
-                <td>{user.user_type}</td>
-                <td>
-                  <span className={`admin-status-badge ${user.disabled ? 'disabled' : 'active'}`}>
-                    {user.disabled ? 'disabled' : 'active'}
-                  </span>
-                </td>
-                <td>
-                  {user.id === session.user.id ? (
-                    <span className="admin-self-note">this is you</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => toggleDisabled(user)}
-                      disabled={pendingId === user.id}
-                    >
-                      {pendingId === user.id ? 'Working…' : user.disabled ? 'Enable' : 'Disable'}
-                    </button>
-                  )}
-                </td>
+      <Accordion title="Feature flags">
+        {flagsError && (
+          <p className="field-error" role="alert">
+            {flagsError}
+          </p>
+        )}
+        <div className="directory-table-wrap">
+          <table className="directory-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Enabled</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {(flags ?? []).map((flag) => (
+                <tr key={flag.key}>
+                  <td>{FEATURE_FLAG_LABELS[flag.key] ?? flag.key}</td>
+                  <td>
+                    <label className="flag-toggle">
+                      <input
+                        type="checkbox"
+                        checked={flag.enabled}
+                        disabled={pendingFlagKey === flag.key}
+                        onChange={() => toggleFlag(flag)}
+                        aria-label={`${flag.enabled ? 'Disable' : 'Enable'} ${FEATURE_FLAG_LABELS[flag.key] ?? flag.key}`}
+                      />
+                      <span className="flag-toggle-track" aria-hidden="true" />
+                    </label>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Accordion>
+
+      <Accordion title="Users">
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="directory-table-wrap">
+          <table className="directory-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td>
+                    <div className="directory-name">{user.display_name || '—'}</div>
+                    <div className="directory-email">{user.email}</div>
+                  </td>
+                  <td>{user.user_type}</td>
+                  <td>
+                    <span className={`admin-status-badge ${user.disabled ? 'disabled' : 'active'}`}>
+                      {user.disabled ? 'disabled' : 'active'}
+                    </span>
+                  </td>
+                  <td>
+                    {user.id === session.user.id ? (
+                      <span className="admin-self-note">this is you</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => toggleDisabled(user)}
+                        disabled={pendingId === user.id}
+                      >
+                        {pendingId === user.id ? 'Working…' : user.disabled ? 'Enable' : 'Disable'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Accordion>
     </div>
   )
 }

@@ -1,0 +1,45 @@
+.accordion {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-h);
+  cursor: pointer;
+  list-style: none;
+
+  /* Default marker varies by browser (triangle in Firefox, nothing
+     needing this in Chromium) -- suppressed everywhere so the custom
+     chevron below is the only one shown. */
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+.accordion-summary::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  margin-left: 12px;
+  border-right: 2px solid var(--text);
+  border-bottom: 2px solid var(--text);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.accordion[open] .accordion-summary::after {
+  transform: rotate(-135deg);
+}
+
+.accordion-body {
+  padding: 0 20px 20px;
+}
