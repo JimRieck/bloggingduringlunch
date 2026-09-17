@@ -267,6 +267,31 @@ export function PostForm({ session, postId, onSaved }) {
     setNewCategoryName('')
   }
 
+  // Categories are org-wide, so this removes it from every post that
+  // uses it across the org, not just the one being edited -- worth a
+  // real confirmation, matching the same window.confirm pattern
+  // MyPosts.jsx already uses before deleting a post.
+  async function handleDeleteCategory(category) {
+    if (
+      !window.confirm(
+        `Delete the category "${category.name}"? This removes it from every post that uses it across ${organizationName}, not just this one.`,
+      )
+    ) {
+      return
+    }
+    const { error: deleteError } = await supabase.from('categories').delete().eq('id', category.id)
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    setCategories((current) => current.filter((c) => c.id !== category.id))
+    setSelectedCategoryIds((current) => {
+      const next = new Set(current)
+      next.delete(category.id)
+      return next
+    })
+  }
+
   function commitTagInput() {
     const name = tagInput.trim()
     if (name && !tagChips.some((t) => t.toLowerCase() === name.toLowerCase())) {
@@ -520,6 +545,15 @@ export function PostForm({ session, postId, onSaved }) {
                     />
                     {c.name}
                   </label>
+                  <button
+                    type="button"
+                    className="category-delete"
+                    onClick={() => handleDeleteCategory(c)}
+                    aria-label={`Delete category ${c.name}`}
+                    title="Delete category"
+                  >
+                    <img src="/icons/trash.svg" alt="" />
+                  </button>
                 </li>
               ))}
             </ul>
