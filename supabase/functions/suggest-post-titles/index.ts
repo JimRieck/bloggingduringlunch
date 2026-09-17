@@ -2,6 +2,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.32'
 import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
+import { getFeatureFlags } from '../_shared/featureFlags.ts'
 
 // A cheap/fast model is plenty for "read a post, suggest some titles" --
 // this isn't a reasoning task.
@@ -48,6 +49,11 @@ Deno.serve(async (req) => {
   const caller = await getCaller(req)
   if (!caller) {
     return json({ error: 'unauthorized' }, 401)
+  }
+
+  const { ai_title_generation: enabled } = await getFeatureFlags(['ai_title_generation'])
+  if (!enabled) {
+    return json({ error: 'feature_disabled' }, 403)
   }
 
   let body: { content?: unknown }

@@ -4,6 +4,7 @@ import OpenAI from 'npm:openai@4'
 import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
+import { getFeatureFlags } from '../_shared/featureFlags.ts'
 
 // Cheap/fast text model for the first hop (deriving an image prompt);
 // image generation itself has no Anthropic equivalent, hence OpenAI for
@@ -78,6 +79,11 @@ Deno.serve(async (req) => {
   const caller = await getCaller(req)
   if (!caller || !authHeader) {
     return json({ error: 'unauthorized' }, 401)
+  }
+
+  const { ai_image_generation: enabled } = await getFeatureFlags(['ai_image_generation'])
+  if (!enabled) {
+    return json({ error: 'feature_disabled' }, 403)
   }
 
   let body: { organizationId?: unknown; title?: unknown; content?: unknown }

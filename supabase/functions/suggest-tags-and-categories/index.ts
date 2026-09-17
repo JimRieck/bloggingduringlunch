@@ -2,6 +2,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.32'
 import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
+import { getFeatureFlags } from '../_shared/featureFlags.ts'
 
 // A cheap/fast model is plenty for "read a post, suggest some tags" --
 // this isn't a reasoning task, and it may run once per post across a
@@ -76,6 +77,11 @@ Deno.serve(async (req) => {
     return json({ error: 'unauthorized' }, 401)
   }
 
+  const flags = await getFeatureFlags(['ai_tag_generation', 'ai_category_generation'])
+  if (!flags.ai_tag_generation && !flags.ai_category_generation) {
+    return json({ error: 'feature_disabled' }, 403)
+  }
+
   let body: { title?: unknown; content?: unknown; existingCategories?: unknown; existingTags?: unknown }
   try {
     body = await req.json()
@@ -98,7 +104,13 @@ Deno.serve(async (req) => {
 
   try {
     const result = await suggest(title, content, existingCategories, existingTags, apiKey)
-    return json(result)
+    // Only one of the two might be enabled -- e.g. category generation
+    // switched off while tag generation stays on -- so whichever half is
+    // disabled is dropped from the response rather than applied.
+    return json({
+      categories: flags.ai_category_generation ? result.categories : [],
+      tags: flags.ai_tag_generation ? result.tags : [],
+    })
   } catch {
     return json({ error: 'suggestion_failed' }, 502)
   }
