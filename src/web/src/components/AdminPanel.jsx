@@ -101,8 +101,7 @@ export function AdminPanel({ session }) {
           <thead>
             <tr>
               <th>Feature</th>
-              <th>Status</th>
-              <th></th>
+              <th>Enabled</th>
             </tr>
           </thead>
           <tbody>
@@ -110,19 +109,16 @@ export function AdminPanel({ session }) {
               <tr key={flag.key}>
                 <td>{FEATURE_FLAG_LABELS[flag.key] ?? flag.key}</td>
                 <td>
-                  <span className={`admin-status-badge ${flag.enabled ? 'active' : 'disabled'}`}>
-                    {flag.enabled ? 'on' : 'off'}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={() => toggleFlag(flag)}
-                    disabled={pendingFlagKey === flag.key}
-                  >
-                    {pendingFlagKey === flag.key ? 'Working…' : flag.enabled ? 'Turn off' : 'Turn on'}
-                  </button>
+                  <label className="flag-toggle">
+                    <input
+                      type="checkbox"
+                      checked={flag.enabled}
+                      disabled={pendingFlagKey === flag.key}
+                      onChange={() => toggleFlag(flag)}
+                      aria-label={`${flag.enabled ? 'Disable' : 'Enable'} ${FEATURE_FLAG_LABELS[flag.key] ?? flag.key}`}
+                    />
+                    <span className="flag-toggle-track" aria-hidden="true" />
+                  </label>
                 </td>
               </tr>
             ))}
