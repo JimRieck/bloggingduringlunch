@@ -24,9 +24,18 @@ export async function resolveCategoryIds(names, organizationId, existingCategori
       ids.push(existing.id)
       continue
     }
+    // Upsert, not a plain insert -- the check above only catches a name
+    // already in *this* caller's existingCategories list, which can be
+    // stale relative to the database. A plain insert on a stale miss
+    // used to create a genuine duplicate row, since only
+    // (organization_id, slug) was ever unique and the slug trigger
+    // auto-suffixes on a collision instead of rejecting a repeat name.
+    // (organization_id, name) is now also a real unique constraint, so
+    // upserting against it resolves a duplicate name to the existing
+    // row instead of creating another one.
     const { data } = await supabase
       .from('categories')
-      .insert({ organization_id: organizationId, name })
+      .upsert({ organization_id: organizationId, name }, { onConflict: 'organization_id,name' })
       .select('id, name')
       .single()
     if (!data) continue
