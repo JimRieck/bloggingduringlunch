@@ -529,7 +529,7 @@ export function PostForm({ session, postId, onSaved }) {
           />
           <button
             type="button"
-            className="link"
+            className="ai-action-button"
             onClick={() => setTitleSuggestOpen(true)}
             disabled={!editor || editor.isEmpty}
             title={!editor || editor.isEmpty ? 'Write something in the body first' : 'Suggest titles based on the body'}
@@ -553,7 +553,7 @@ export function PostForm({ session, postId, onSaved }) {
         </div>
       </div>
       <div className="field">
-        <button type="button" className="link" onClick={handleAutoSuggest} disabled={suggesting}>
+        <button type="button" className="ai-action-button" onClick={handleAutoSuggest} disabled={suggesting}>
           {suggesting ? 'Suggesting…' : '✨ Auto-suggest tags & categories'}
         </button>
       </div>
@@ -644,7 +644,7 @@ export function PostForm({ session, postId, onSaved }) {
         </div>
       )}
       <div className="field">
-        <button type="button" className="link" onClick={() => setGeneratePostOpen(true)}>
+        <button type="button" className="ai-action-button" onClick={() => setGeneratePostOpen(true)}>
           ✨ Generate post from description
         </button>
       </div>
