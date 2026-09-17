@@ -2,6 +2,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.32'
 import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
+import { getFeatureFlags } from '../_shared/featureFlags.ts'
 
 // Writing a coherent draft is a genuinely different kind of task than
 // the short-label classification the other two functions in this repo
@@ -56,6 +57,11 @@ Deno.serve(async (req) => {
   const caller = await getCaller(req)
   if (!caller) {
     return json({ error: 'unauthorized' }, 401)
+  }
+
+  const { ai_body_generation: enabled } = await getFeatureFlags(['ai_body_generation'])
+  if (!enabled) {
+    return json({ error: 'feature_disabled' }, 403)
   }
 
   let body: { description?: unknown }

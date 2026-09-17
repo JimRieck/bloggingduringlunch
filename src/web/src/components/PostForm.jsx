@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { Callout } from '../lib/CalloutExtension.js'
 import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
 import { resolveCategoryIds } from '../lib/taxonomy.js'
+import { useFeatureFlags } from '../lib/featureFlags.js'
 import { ImagePicker } from './ImagePicker.jsx'
 import { TitleSuggestModal } from './TitleSuggestModal.jsx'
 import { GeneratePostModal } from './GeneratePostModal.jsx'
@@ -155,6 +156,7 @@ export function PostForm({ session, postId, onSaved }) {
   const [titleSuggestOpen, setTitleSuggestOpen] = useState(false)
   const [generatePostOpen, setGeneratePostOpen] = useState(false)
   const [generatingImage, setGeneratingImage] = useState(false)
+  const featureFlags = useFeatureFlags()
 
   const editor = useEditor({
     extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout, YoutubeEmbed],
@@ -575,15 +577,17 @@ export function PostForm({ session, postId, onSaved }) {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What are you writing about?"
           />
-          <button
-            type="button"
-            className="ai-action-button"
-            onClick={() => setTitleSuggestOpen(true)}
-            disabled={isBodyEmpty}
-            title={isBodyEmpty ? 'Write something in the body first' : 'Suggest titles based on the body'}
-          >
-            ✨ Suggest titles
-          </button>
+          {featureFlags.ai_title_generation && (
+            <button
+              type="button"
+              className="ai-action-button"
+              onClick={() => setTitleSuggestOpen(true)}
+              disabled={isBodyEmpty}
+              title={isBodyEmpty ? 'Write something in the body first' : 'Suggest titles based on the body'}
+            >
+              ✨ Suggest titles
+            </button>
+          )}
         </div>
       </div>
       <div className="field">
@@ -594,16 +598,18 @@ export function PostForm({ session, postId, onSaved }) {
             <img src="/icons/image.svg" alt="" />
             {thumbnailUrl ? 'Change image' : 'Choose image'}
           </button>
-          <button
-            type="button"
-            className="ai-action-button"
-            onClick={handleGenerateImage}
-            disabled={generatingImage || isBodyEmpty}
-            title={isBodyEmpty ? 'Write something in the body first' : 'Generate an image based on the body'}
-          >
-            <img src="/icons/sparkles.svg" alt="" />
-            {generatingImage ? 'Generating image…' : 'Generate Image'}
-          </button>
+          {featureFlags.ai_image_generation && (
+            <button
+              type="button"
+              className="ai-action-button"
+              onClick={handleGenerateImage}
+              disabled={generatingImage || isBodyEmpty}
+              title={isBodyEmpty ? 'Write something in the body first' : 'Generate an image based on the body'}
+            >
+              <img src="/icons/sparkles.svg" alt="" />
+              {generatingImage ? 'Generating image…' : 'Generate Image'}
+            </button>
+          )}
           {thumbnailUrl && (
             <button type="button" className="link" onClick={() => setThumbnailUrl(null)}>
               Remove
@@ -611,11 +617,13 @@ export function PostForm({ session, postId, onSaved }) {
           )}
         </div>
       </div>
-      <div className="field">
-        <button type="button" className="ai-action-button" onClick={handleAutoSuggest} disabled={suggesting}>
-          {suggesting ? 'Suggesting…' : '✨ Auto-suggest tags & categories'}
-        </button>
-      </div>
+      {(featureFlags.ai_tag_generation || featureFlags.ai_category_generation) && (
+        <div className="field">
+          <button type="button" className="ai-action-button" onClick={handleAutoSuggest} disabled={suggesting}>
+            {suggesting ? 'Suggesting…' : '✨ Auto-suggest tags & categories'}
+          </button>
+        </div>
+      )}
       <div className="field">
         <span>Categories</span>
         <div className="taxonomy-box">
@@ -702,11 +710,13 @@ export function PostForm({ session, postId, onSaved }) {
           </div>
         </div>
       )}
-      <div className="field">
-        <button type="button" className="ai-action-button" onClick={() => setGeneratePostOpen(true)}>
-          ✨ Generate post from description
-        </button>
-      </div>
+      {featureFlags.ai_body_generation && (
+        <div className="field">
+          <button type="button" className="ai-action-button" onClick={() => setGeneratePostOpen(true)}>
+            ✨ Generate post from description
+          </button>
+        </div>
+      )}
       <div className="field">
         <span>Body</span>
         <div className="editor-shell">

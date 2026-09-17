@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
+import { useFeatureFlags } from '../lib/featureFlags.js'
 import { CircularProgress } from './CircularProgress.jsx'
 import './BulkAutoTag.css'
 
@@ -48,6 +49,8 @@ export function BulkAutoTag({ session }) {
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState('')
   const stopRef = useRef(false)
+  const featureFlags = useFeatureFlags()
+  const featureEnabled = featureFlags.ai_tag_generation || featureFlags.ai_category_generation
 
   useEffect(() => {
     let cancelled = false
@@ -217,7 +220,7 @@ export function BulkAutoTag({ session }) {
             adds to what&rsquo;s already there &mdash; nothing existing is removed.
           </p>
         </div>
-        {posts && posts.length > 0 && (
+        {featureEnabled && posts && posts.length > 0 && (
           <button type="button" className="primary" disabled={running} onClick={running ? handleStop : handleAutoTagAll}>
             {running ? (
               <span className="bulk-auto-tag-progress">
@@ -237,7 +240,9 @@ export function BulkAutoTag({ session }) {
         </p>
       )}
 
-      {posts === null ? (
+      {!featureEnabled ? (
+        <p className="bulk-auto-tag-status">Auto-tagging isn&rsquo;t available right now.</p>
+      ) : posts === null ? (
         <p className="bulk-auto-tag-status">Loading…</p>
       ) : posts.length === 0 ? (
         <p className="bulk-auto-tag-status">You haven&rsquo;t written anything yet.</p>
