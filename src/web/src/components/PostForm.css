@@ -187,11 +187,20 @@
     text-align: left;
   }
 
+  .tiptap h1,
   .tiptap h2,
   .tiptap h3 {
     text-align: left;
     margin: 20px 0 8px;
     font-family: var(--post-heading);
+  }
+
+  /* Distinct from both the global site h1 (index.css, sized for the
+     hero logo/title) and h2's 24px -- a real step up for a top-level
+     heading inside a post body, without inheriting the 56px meant for
+     the site's own chrome. */
+  .tiptap h1 {
+    font-size: 32px;
   }
 
   .tiptap .callout {
@@ -457,5 +466,26 @@
   button.primary {
     width: auto;
     padding: 10px 20px;
+  }
+
+  button.secondary {
+    font: inherit;
+    font-size: 16px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-h);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: var(--accent-border);
+      color: var(--accent);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   }
 }

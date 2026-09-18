@@ -111,11 +111,19 @@
   margin: 0 0 12px;
 }
 
+.post-body h1,
 .post-body h2,
 .post-body h3 {
   text-align: left;
   margin: 20px 0 8px;
   font-family: var(--post-heading);
+}
+
+/* Same reasoning as PostForm.css's .tiptap h1 -- a real step up from
+   h2's 24px, without inheriting the global site h1's 56px (sized for
+   the hero logo/title, not a heading inside a post body). */
+.post-body h1 {
+  font-size: 32px;
 }
 
 .post-body .callout {
