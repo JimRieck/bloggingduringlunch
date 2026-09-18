@@ -24,6 +24,7 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [ownedOrg, setOwnedOrg] = useState(null)
   const [authorOrg, setAuthorOrg] = useState(undefined)
+  const [orgAdmin, setOrgAdmin] = useState(null)
   const [isSiteAdmin, setIsSiteAdmin] = useState(false)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [disabledNotice, setDisabledNotice] = useState(false)
@@ -98,6 +99,22 @@ function App() {
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setAuthorOrg(data ? { ...data.organizations, role: data.role } : null))
+  }, [session])
+
+  // Separate from ownedOrg/authorOrg -- this is specifically "can this
+  // person rename the org," which the organizations RLS policy grants
+  // to owner OR admin (is_org_admin), not just an owner (ownedOrg) or a
+  // post-author (authorOrg, which also admits 'editor').
+  useEffect(() => {
+    if (!session) return
+    supabase
+      .from('memberships')
+      .select('role, organizations(id, name)')
+      .eq('user_id', session.user.id)
+      .in('role', ['owner', 'admin'])
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setOrgAdmin(data ? { ...data.organizations, role: data.role } : null))
   }, [session])
 
   const pathname = window.location.pathname
@@ -256,9 +273,15 @@ function App() {
           displayName={profile?.display_name}
           email={session.user.email}
           ownedOrg={ownedOrg}
+          orgAdmin={orgAdmin}
           canImport={!!authorOrg}
           isSiteAdmin={isSiteAdmin}
           onAvatarUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
+          onNameUpdated={(name) => setProfile((p) => ({ ...p, display_name: name }))}
+          onOrgRenamed={(orgId, name) => {
+            setOrgAdmin((o) => (o && o.id === orgId ? { ...o, name } : o))
+            setAuthorOrg((o) => (o && o.id === orgId ? { ...o, name } : o))
+          }}
         />
         <div id="app-content">{content}</div>
       </div>
