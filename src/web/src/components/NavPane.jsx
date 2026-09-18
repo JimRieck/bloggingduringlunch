@@ -126,6 +126,12 @@ export function NavPane({
             </span>
             {showLabels && <span>Search</span>}
           </a>
+          <a href="/suggestions" title="Suggestions">
+            <span className="nav-icon" aria-hidden="true">
+              💡
+            </span>
+            {showLabels && <span>Suggestions</span>}
+          </a>
           {canImport && (
             <a href="/posts/import" title="Import from WordPress">
               <span className="nav-icon" aria-hidden="true">

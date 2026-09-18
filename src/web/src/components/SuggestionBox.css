@@ -1,0 +1,116 @@
+#suggestion-box {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px;
+  text-align: left;
+}
+
+#suggestion-box h2 {
+  margin-bottom: 8px;
+}
+
+#suggestion-box h3 {
+  margin: 32px 0 12px;
+  font-size: 16px;
+}
+
+.suggestion-box-intro {
+  color: var(--text);
+  font-size: 14px;
+  margin: 0 0 20px;
+}
+
+#suggestion-box textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  box-sizing: border-box;
+  resize: vertical;
+  margin-bottom: 12px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+#suggestion-box form button.primary {
+  width: auto;
+  padding: 10px 20px;
+}
+
+.suggestion-box-status {
+  color: var(--text);
+}
+
+.suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.suggestion-row {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.suggestion-content {
+  margin: 0 0 8px;
+  color: var(--text-h);
+  white-space: pre-wrap;
+}
+
+.suggestion-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suggestion-date {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.status-badge.status-new {
+  color: var(--text-h);
+  background: var(--code-bg);
+}
+
+.status-badge.status-under_review {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.status-badge.status-planned,
+.status-badge.status-completed {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.status-badge.status-declined {
+  color: var(--text);
+  background: var(--code-bg);
+}
