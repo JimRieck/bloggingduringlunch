@@ -135,11 +135,11 @@ export function AdminPanel({ session }) {
     <div id="directory">
       <h1>Site admin</h1>
 
-      <Accordion title="Site traffic">
+      <Accordion title="Site traffic" defaultOpen={false}>
         <SiteStats />
       </Accordion>
 
-      <Accordion title="Feature flags">
+      <Accordion title="Feature flags" defaultOpen={false}>
         {flagsError && (
           <p className="field-error" role="alert">
             {flagsError}
@@ -176,7 +176,7 @@ export function AdminPanel({ session }) {
         </div>
       </Accordion>
 
-      <Accordion title="Suggestions">
+      <Accordion title="Suggestions" defaultOpen={false}>
         {suggestionsError && (
           <p className="field-error" role="alert">
             {suggestionsError}
@@ -228,7 +228,7 @@ export function AdminPanel({ session }) {
         )}
       </Accordion>
 
-      <Accordion title="Users">
+      <Accordion title="Users" defaultOpen={false}>
         {error && (
           <p className="field-error" role="alert">
             {error}
