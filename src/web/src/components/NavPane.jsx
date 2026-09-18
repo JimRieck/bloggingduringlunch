@@ -4,6 +4,7 @@ import { useFeatureFlags } from '../lib/featureFlags.js'
 import { Avatar } from './Avatar.jsx'
 import { ProfileImageModal } from './ProfileImageModal.jsx'
 import { InviteMemberModal } from './InviteMemberModal.jsx'
+import { OrgNameModal } from './OrgNameModal.jsx'
 import './NavPane.css'
 
 function getStoredCollapsed() {
@@ -26,11 +27,24 @@ function NavSection({ label, showLabels, children }) {
   )
 }
 
-export function NavPane({ userId, profile, displayName, email, ownedOrg, canImport, isSiteAdmin, onAvatarUploaded }) {
+export function NavPane({
+  userId,
+  profile,
+  displayName,
+  email,
+  ownedOrg,
+  orgAdmin,
+  canImport,
+  isSiteAdmin,
+  onAvatarUploaded,
+  onNameUpdated,
+  onOrgRenamed,
+}) {
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showOrgModal, setShowOrgModal] = useState(false)
   const showLabels = !collapsed || mobileOpen
   const featureFlags = useFeatureFlags()
 
@@ -85,7 +99,7 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, canImpo
               setShowImageModal(true)
               setMobileOpen(false)
             }}
-            title="Change profile photo"
+            title="Edit profile"
           >
             <Avatar url={profile?.avatar_url} label={displayName || email} />
           </button>
@@ -129,14 +143,24 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, canImpo
             </a>
           )}
 
-          {ownedOrg && (
+          {(ownedOrg || orgAdmin) && (
             <NavSection label="Org Admin" showLabels={showLabels}>
-              <button type="button" onClick={() => setShowInviteModal(true)} title="Invite by email">
-                <span className="nav-icon" aria-hidden="true">
-                  ✉️
-                </span>
-                {showLabels && <span>Invite by email</span>}
-              </button>
+              {ownedOrg && (
+                <button type="button" onClick={() => setShowInviteModal(true)} title="Invite by email">
+                  <span className="nav-icon" aria-hidden="true">
+                    ✉️
+                  </span>
+                  {showLabels && <span>Invite by email</span>}
+                </button>
+              )}
+              {orgAdmin && (
+                <button type="button" onClick={() => setShowOrgModal(true)} title="Organization settings">
+                  <span className="nav-icon" aria-hidden="true">
+                    🏢
+                  </span>
+                  {showLabels && <span>Organization settings</span>}
+                </button>
+              )}
             </NavSection>
           )}
 
@@ -175,13 +199,24 @@ export function NavPane({ userId, profile, displayName, email, ownedOrg, canImpo
         <ProfileImageModal
           userId={userId}
           currentUrl={profile?.avatar_url}
+          currentName={displayName}
           label={displayName || email}
           onUploaded={onAvatarUploaded}
+          onNameUpdated={onNameUpdated}
           onClose={() => setShowImageModal(false)}
         />
       )}
 
       {showInviteModal && <InviteMemberModal onClose={() => setShowInviteModal(false)} />}
+
+      {showOrgModal && orgAdmin && (
+        <OrgNameModal
+          organizationId={orgAdmin.id}
+          currentName={orgAdmin.name}
+          onRenamed={(name) => onOrgRenamed(orgAdmin.id, name)}
+          onClose={() => setShowOrgModal(false)}
+        />
+      )}
     </>
   )
 }
