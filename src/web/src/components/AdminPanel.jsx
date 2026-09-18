@@ -240,8 +240,7 @@ export function AdminPanel({ session }) {
               <tr>
                 <th>User</th>
                 <th>Type</th>
-                <th>Status</th>
-                <th></th>
+                <th>Active</th>
               </tr>
             </thead>
             <tbody>
@@ -253,22 +252,19 @@ export function AdminPanel({ session }) {
                   </td>
                   <td>{user.user_type}</td>
                   <td>
-                    <span className={`admin-status-badge ${user.disabled ? 'disabled' : 'active'}`}>
-                      {user.disabled ? 'disabled' : 'active'}
-                    </span>
-                  </td>
-                  <td>
                     {user.id === session.user.id ? (
                       <span className="admin-self-note">this is you</span>
                     ) : (
-                      <button
-                        type="button"
-                        className="link"
-                        onClick={() => toggleDisabled(user)}
-                        disabled={pendingId === user.id}
-                      >
-                        {pendingId === user.id ? 'Working…' : user.disabled ? 'Enable' : 'Disable'}
-                      </button>
+                      <label className="flag-toggle">
+                        <input
+                          type="checkbox"
+                          checked={!user.disabled}
+                          disabled={pendingId === user.id}
+                          onChange={() => toggleDisabled(user)}
+                          aria-label={`${user.disabled ? 'Enable' : 'Disable'} ${user.email}`}
+                        />
+                        <span className="flag-toggle-track" aria-hidden="true" />
+                      </label>
                     )}
                   </td>
                 </tr>
