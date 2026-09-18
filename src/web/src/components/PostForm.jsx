@@ -3,6 +3,7 @@ import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
+import Underline from '@tiptap/extension-underline'
 import { supabase } from '../lib/supabaseClient.js'
 import { Callout } from '../lib/CalloutExtension.js'
 import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
@@ -26,16 +27,29 @@ function extractYoutubeId(input) {
 const TOOLBAR_BUTTONS = [
   { title: 'Bold', icon: '/icons/bold.svg', command: (chain) => chain.toggleBold(), active: 'bold' },
   { title: 'Italic', icon: '/icons/italic.svg', command: (chain) => chain.toggleItalic(), active: 'italic' },
+  {
+    title: 'Underline',
+    icon: '/icons/underline.svg',
+    command: (chain) => chain.toggleUnderline(),
+    active: 'underline',
+  },
   { title: 'Inline code', icon: '/icons/inline-code.svg', command: (chain) => chain.toggleCode(), active: 'code' },
   {
-    title: 'Heading',
+    title: 'Heading 1',
+    icon: '/icons/heading-1.svg',
+    command: (chain) => chain.toggleHeading({ level: 1 }),
+    active: 'heading',
+    activeAttrs: { level: 1 },
+  },
+  {
+    title: 'Heading 2',
     icon: '/icons/heading-2.svg',
     command: (chain) => chain.toggleHeading({ level: 2 }),
     active: 'heading',
     activeAttrs: { level: 2 },
   },
   {
-    title: 'Subheading',
+    title: 'Heading 3',
     icon: '/icons/heading-3.svg',
     command: (chain) => chain.toggleHeading({ level: 3 }),
     active: 'heading',
@@ -159,7 +173,7 @@ export function PostForm({ session, postId, onSaved }) {
   const featureFlags = useFeatureFlags()
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Callout, YoutubeEmbed],
+    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Underline, Callout, YoutubeEmbed],
     content: '',
   })
 
@@ -547,6 +561,17 @@ export function PostForm({ session, postId, onSaved }) {
     setGeneratePostOpen(false)
   }
 
+  // Same "confirm before losing work" bar as handleGeneratedContent --
+  // only prompts when there's actually something to lose, so cancelling
+  // out of a blank form is instant.
+  function handleCancel() {
+    const hasContent = title.trim() || (editor && !editor.isEmpty)
+    if (hasContent && !window.confirm('Discard this post and leave the editor?')) {
+      return
+    }
+    window.location.href = '/'
+  }
+
   if (postId) {
     if (post === undefined) return <p className="post-form-status">Loading…</p>
     if (post === null) {
@@ -735,7 +760,10 @@ export function PostForm({ session, postId, onSaved }) {
         </p>
       )}
       <div className="post-form-actions">
-        <button type="button" className="link" disabled={saving} onClick={() => handleSave('draft')}>
+        <button type="button" className="secondary" disabled={saving} onClick={handleCancel}>
+          Cancel
+        </button>
+        <button type="button" className="secondary" disabled={saving} onClick={() => handleSave('draft')}>
           Save draft
         </button>
         <button type="button" className="primary" disabled={saving} onClick={() => handleSave('published')}>
