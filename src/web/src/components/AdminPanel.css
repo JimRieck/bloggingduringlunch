@@ -85,3 +85,24 @@
 .flag-toggle input:disabled + .flag-toggle-track {
   opacity: 0.5;
 }
+
+.suggestion-cell {
+  max-width: 360px;
+  white-space: pre-wrap;
+}
+
+.directory-table select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  min-height: 40px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

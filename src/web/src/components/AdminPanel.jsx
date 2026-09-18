@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { SUGGESTION_STATUSES, SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import { SiteStats } from './SiteStats.jsx'
 import { Accordion } from './Accordion.jsx'
 import './UserDirectory.css'
@@ -25,6 +26,9 @@ export function AdminPanel({ session }) {
   const [flags, setFlags] = useState(null)
   const [flagsError, setFlagsError] = useState('')
   const [pendingFlagKey, setPendingFlagKey] = useState(null)
+  const [suggestions, setSuggestions] = useState(null)
+  const [suggestionsError, setSuggestionsError] = useState('')
+  const [pendingSuggestionId, setPendingSuggestionId] = useState(null)
 
   function load() {
     supabase
@@ -36,6 +40,29 @@ export function AdminPanel({ session }) {
 
   useEffect(() => {
     load()
+
+    // Two-step fetch, not an embed -- same reasoning as BulkAutoTag.jsx's
+    // loadCategoriesAndTags: suggestions.user_id -> profiles is a plain
+    // foreign key with no FK-based embed relationship set up, and
+    // profiles' own RLS ("Site admins can view all profiles") is
+    // independent of suggestions' RLS anyway.
+    async function loadSuggestions() {
+      const { data: rows } = await supabase
+        .from('suggestions')
+        .select('id, user_id, content, status, created_at')
+        .order('created_at', { ascending: false })
+      const suggestionRows = rows ?? []
+
+      const userIds = [...new Set(suggestionRows.map((s) => s.user_id))]
+      const { data: profileRows } = userIds.length
+        ? await supabase.from('profiles').select('id, email, display_name').in('id', userIds)
+        : { data: [] }
+      const profileById = new Map((profileRows ?? []).map((p) => [p.id, p]))
+
+      setSuggestions(suggestionRows.map((s) => ({ ...s, submitter: profileById.get(s.user_id) })))
+    }
+    loadSuggestions()
+
     supabase
       .from('feature_flags')
       .select('key, enabled')
@@ -60,6 +87,24 @@ export function AdminPanel({ session }) {
       return
     }
     setFlags((current) => current.map((f) => (f.key === flag.key ? { ...f, enabled: !f.enabled } : f)))
+  }
+
+  // Through an Edge Function, not a direct table update like toggleFlag
+  // -- this one has a required side effect (emailing the submitter) that
+  // has to run server-side, not something the client can be trusted to
+  // do reliably or that should expose the Resend API key to the browser.
+  async function handleStatusChange(suggestion, status) {
+    setSuggestionsError('')
+    setPendingSuggestionId(suggestion.id)
+    const { data, error: invokeError } = await supabase.functions.invoke('update-suggestion-status', {
+      body: { suggestionId: suggestion.id, status },
+    })
+    setPendingSuggestionId(null)
+    if (invokeError || !data?.suggestion) {
+      setSuggestionsError("Couldn't update that suggestion. Try again.")
+      return
+    }
+    setSuggestions((current) => current.map((s) => (s.id === suggestion.id ? { ...s, status } : s)))
   }
 
   async function toggleDisabled(user) {
@@ -129,6 +174,58 @@ export function AdminPanel({ session }) {
             </tbody>
           </table>
         </div>
+      </Accordion>
+
+      <Accordion title="Suggestions">
+        {suggestionsError && (
+          <p className="field-error" role="alert">
+            {suggestionsError}
+          </p>
+        )}
+        {suggestions === null ? (
+          <p className="directory-status">Loading…</p>
+        ) : suggestions.length === 0 ? (
+          <p className="directory-status">No suggestions yet.</p>
+        ) : (
+          <div className="directory-table-wrap">
+            <table className="directory-table">
+              <thead>
+                <tr>
+                  <th>Submitted by</th>
+                  <th>When</th>
+                  <th>Suggestion</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suggestions.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <div className="directory-name">{s.submitter?.display_name || '—'}</div>
+                      <div className="directory-email">{s.submitter?.email}</div>
+                    </td>
+                    <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                    <td className="suggestion-cell">{s.content}</td>
+                    <td>
+                      <select
+                        value={s.status}
+                        disabled={pendingSuggestionId === s.id}
+                        onChange={(e) => handleStatusChange(s, e.target.value)}
+                        aria-label={`Status for suggestion from ${s.submitter?.email ?? 'unknown'}`}
+                      >
+                        {SUGGESTION_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {SUGGESTION_STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Accordion>
 
       <Accordion title="Users">
