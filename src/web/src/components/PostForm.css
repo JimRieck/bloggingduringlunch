@@ -101,16 +101,40 @@
 .editor-shell {
   border: 1px solid var(--border);
   border-radius: 4px;
-  overflow: hidden;
 }
 
+/* Sticky, not just "at the top of the editor" -- on a long post, the
+   formatting buttons are the thing you reach for most and shouldn't
+   require scrolling back up to use. Stays pinned to the viewport (not
+   just the editor) while the body scrolls underneath it, the same way
+   NavPane.css's own #nav-pane already sticks to the viewport during
+   page scroll -- both rely on the page itself being the scrolling
+   container, not some inner overflow box, which is also why
+   .editor-shell no longer clips with `overflow: hidden`: a sticky
+   element can only stick within its containing block's own height, and
+   an ancestor with overflow other than visible is a real (if
+   inconsistent-across-browsers) risk for breaking that. Rounds its own
+   top corners directly instead, since the shell isn't clipping for it
+   anymore. */
 .editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px;
   border-bottom: 1px solid var(--border);
+  border-radius: 4px 4px 0 0;
   background: var(--code-bg);
+
+  @media (max-width: 768px) {
+    /* Clears the fixed mobile hamburger (NavPane.css's
+       #mobile-nav-toggle), same 56px #app-content already reserves for
+       it via padding-top -- otherwise it would sit on top of the
+       toolbar's first couple of buttons once stuck. */
+    top: 56px;
+  }
 
   button {
     display: flex;
@@ -150,6 +174,7 @@
 .editor-content {
   padding: 16px;
   min-height: 260px;
+  border-radius: 0 0 4px 4px;
   font-family: var(--post-body);
 
   .tiptap {
