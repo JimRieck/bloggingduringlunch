@@ -140,6 +140,14 @@ export function NavPane({
               {showLabels && <span>Import from WordPress</span>}
             </a>
           )}
+          {canImport && featureFlags.linkedin_posting && (
+            <a href="/social" title="Social posting">
+              <span className="nav-icon" aria-hidden="true">
+                📣
+              </span>
+              {showLabels && <span>Social posting</span>}
+            </a>
+          )}
           {canImport && featureFlags.ai_bulk_auto_tag && (
             <a href="/posts/bulk-tag" title="Auto-tag posts">
               <span className="nav-icon" aria-hidden="true">

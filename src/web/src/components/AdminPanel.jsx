@@ -6,10 +6,10 @@ import { Accordion } from './Accordion.jsx'
 import './UserDirectory.css'
 import './AdminPanel.css'
 
-// Human-readable labels for feature_flags.key -- one row per AI feature,
-// same six keys the client checks via useFeatureFlags() and every AI
-// Edge Function checks server-side (src/web/src/lib/featureFlags.js,
-// supabase/functions/_shared/featureFlags.ts).
+// Human-readable labels for feature_flags.key -- one row per gated
+// feature, the same keys the client checks via useFeatureFlags() and the
+// matching Edge Functions check server-side (src/web/src/lib/
+// featureFlags.js, supabase/functions/_shared/featureFlags.ts).
 const FEATURE_FLAG_LABELS = {
   ai_tag_generation: 'AI tag generation',
   ai_category_generation: 'AI category generation',
@@ -17,6 +17,7 @@ const FEATURE_FLAG_LABELS = {
   ai_body_generation: 'AI post draft generation',
   ai_image_generation: 'AI image generation',
   ai_bulk_auto_tag: 'Bulk auto-tag (Auto-tag posts menu)',
+  linkedin_posting: 'LinkedIn posting (Social posting menu)',
 }
 
 export function AdminPanel({ session }) {

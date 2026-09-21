@@ -388,6 +388,16 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# These two can't carry a user JWT, so the gateway's JWT check is off and
+# each function authenticates its caller itself: the OAuth callback is a
+# browser redirect from LinkedIn (validated by a one-time `state` nonce),
+# and the processor is called by pg_cron with a Vault-held shared secret.
+[functions.linkedin-oauth-callback]
+verify_jwt = false
+
+[functions.linkedin-process-due]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
