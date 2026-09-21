@@ -429,6 +429,25 @@ describe('LinkedIn scheduled posts', () => {
       expect(res.headers.get('location')).toContain('/social?linkedin=error')
     })
 
+    it('passes LinkedIn\'s own refusal reason back to the page instead of hiding it', async () => {
+      // e.g. the app's "Share on LinkedIn" product isn't approved yet.
+      const res = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/linkedin-oauth-callback?error=unauthorized_scope_error&error_description=x`,
+        { redirect: 'manual' },
+      )
+      expect(res.status).toBe(302)
+      const location = new URL(res.headers.get('location'))
+      expect(location.searchParams.get('linkedin')).toBe('error')
+      expect(location.searchParams.get('reason')).toBe('unauthorized_scope_error')
+
+      // Anything that isn't a plain code is not echoed into the URL.
+      const odd = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/linkedin-oauth-callback?error=%3Cscript%3E`,
+        { redirect: 'manual' },
+      )
+      expect(new URL(odd.headers.get('location')).searchParams.get('reason')).toBe('linkedin_error')
+    })
+
     describe('with the feature flag on', () => {
       beforeAll(() => setFlag(true))
       afterAll(() => setFlag(false))

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
+import { describeConnectError } from '../lib/socialPosting.js'
 import { LinkedInConnection } from './LinkedInConnection.jsx'
 import { SchedulePostForm } from './SchedulePostForm.jsx'
 import { ScheduledPostList } from './ScheduledPostList.jsx'
@@ -15,6 +16,7 @@ export function SocialPosting({ session }) {
   const [reloadKey, setReloadKey] = useState(0)
   // LinkedIn sends the browser back here with ?linkedin=connected|error.
   const [returned] = useState(() => new URLSearchParams(window.location.search).get('linkedin'))
+  const [returnedReason] = useState(() => new URLSearchParams(window.location.search).get('reason'))
 
   useEffect(() => {
     if (returned) window.history.replaceState({}, '', window.location.pathname)
@@ -81,7 +83,7 @@ export function SocialPosting({ session }) {
       )}
       {returned === 'error' && (
         <p className="field-error" role="alert">
-          Couldn&rsquo;t connect LinkedIn. Try again.
+          {describeConnectError(returnedReason)}
         </p>
       )}
 
