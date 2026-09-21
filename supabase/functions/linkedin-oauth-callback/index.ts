@@ -4,11 +4,15 @@ import { API_BASE, OAUTH_BASE, serviceClient } from '../_shared/linkedin.ts'
 const APP_URL = Deno.env.get('APP_URL') ?? 'https://bloggingduringlunch.com'
 const STATE_MAX_AGE_MS = 15 * 60 * 1000
 
-function back(result: 'connected' | 'error') {
-  return new Response(null, {
-    status: 302,
-    headers: { Location: `${APP_URL}/social?linkedin=${result}` },
-  })
+// `reason` is a short machine code the /social page turns into advice
+// (see describeConnectError in src/web/src/lib/socialPosting.js) -- the
+// alternative was a bare "couldn't connect", which gives the person
+// setting this up nothing to act on.
+function back(result: 'connected' | 'error', reason?: string) {
+  const url = new URL(`${APP_URL}/social`)
+  url.searchParams.set('linkedin', result)
+  if (reason) url.searchParams.set('reason', reason)
+  return new Response(null, { status: 302, headers: { Location: url.toString() } })
 }
 
 // Step 2 of connecting LinkedIn. LinkedIn redirects the *browser* here
@@ -20,16 +24,28 @@ Deno.serve(async (req) => {
   const params = new URL(req.url).searchParams
   const code = params.get('code')
   const state = params.get('state')
-  if (params.get('error') || !code || !state) {
-    return back('error')
+
+  // LinkedIn reports a refused/cancelled authorization as ?error=...
+  // (e.g. unauthorized_scope_error when a required product isn't approved
+  // on the app). Only a plain code is passed along -- it goes into a URL.
+  const linkedinError = params.get('error')
+  if (linkedinError) {
+    console.error('linkedin-oauth-callback: LinkedIn returned', linkedinError, params.get('error_description'))
+    return back('error', /^[a-z_]{1,60}$/.test(linkedinError) ? linkedinError : 'linkedin_error')
+  }
+  if (!code || !state) {
+    return back('error', 'missing_params')
   }
 
   const { linkedin_posting: enabled } = await getFeatureFlags(['linkedin_posting'])
   const clientId = Deno.env.get('LINKEDIN_CLIENT_ID')
   const clientSecret = Deno.env.get('LINKEDIN_CLIENT_SECRET')
   const redirectUri = Deno.env.get('LINKEDIN_REDIRECT_URI')
-  if (!enabled || !clientId || !clientSecret || !redirectUri) {
-    return back('error')
+  if (!enabled) {
+    return back('error', 'feature_disabled')
+  }
+  if (!clientId || !clientSecret || !redirectUri) {
+    return back('error', 'not_configured')
   }
 
   const admin = serviceClient()
@@ -42,7 +58,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
   await admin.from('linkedin_oauth_states').delete().eq('state', state)
   if (!stored || Date.now() - new Date(stored.created_at).getTime() > STATE_MAX_AGE_MS) {
-    return back('error')
+    return back('error', 'state_invalid')
   }
 
   try {
@@ -58,8 +74,12 @@ Deno.serve(async (req) => {
       }),
     })
     if (!tokenRes.ok) {
-      console.error('linkedin-oauth-callback: token exchange failed', tokenRes.status)
-      return back('error')
+      console.error(
+        'linkedin-oauth-callback: token exchange failed',
+        tokenRes.status,
+        (await tokenRes.text().catch(() => '')).slice(0, 300),
+      )
+      return back('error', `token_exchange_${tokenRes.status}`)
     }
     const token = await tokenRes.json()
 
@@ -67,8 +87,12 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${token.access_token}` },
     })
     if (!profileRes.ok) {
-      console.error('linkedin-oauth-callback: userinfo failed', profileRes.status)
-      return back('error')
+      console.error(
+        'linkedin-oauth-callback: userinfo failed',
+        profileRes.status,
+        (await profileRes.text().catch(() => '')).slice(0, 300),
+      )
+      return back('error', `userinfo_${profileRes.status}`)
     }
     const profile = await profileRes.json()
 
@@ -82,11 +106,11 @@ Deno.serve(async (req) => {
     })
     if (error) {
       console.error('linkedin-oauth-callback: save failed', error.message)
-      return back('error')
+      return back('error', 'save_failed')
     }
   } catch (err) {
     console.error('linkedin-oauth-callback: unexpected failure', err)
-    return back('error')
+    return back('error', 'unexpected')
   }
 
   return back('connected')
