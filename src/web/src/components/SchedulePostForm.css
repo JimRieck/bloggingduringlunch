@@ -1,0 +1,103 @@
+.schedule-form {
+  .field select,
+  .field input[type='datetime-local'] {
+    font: inherit;
+    font-size: 16px;
+    padding: 8px 10px;
+    min-height: 40px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-h);
+    box-sizing: border-box;
+    max-width: 100%;
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+  }
+}
+
+.schedule-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.schedule-label {
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.schedule-message {
+  width: 100%;
+
+  textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-h);
+    box-sizing: border-box;
+    resize: vertical;
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+  }
+}
+
+.schedule-message-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* Text-link buttons still need a real touch target (CLAUDE.md: 40-44px). */
+.schedule-messages button.link,
+.schedule-message-meta button.link {
+  min-height: 40px;
+  padding: 0 4px;
+}
+
+.schedule-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.schedule-when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  .field {
+    min-width: 180px;
+    flex: 1;
+  }
+}
+
+.schedule-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+
+  button.primary,
+  button.secondary {
+    width: auto;
+    min-height: 40px;
+    padding: 10px 20px;
+  }
+}

@@ -1,0 +1,82 @@
+#social-posting {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+#social-posting h2 {
+  margin: 0;
+}
+
+.social-intro,
+.social-status {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.social-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 17px;
+    color: var(--text-h);
+  }
+}
+
+.social-connection-line {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.social-connection-expiry {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text);
+
+  &.warn {
+    color: var(--accent);
+  }
+}
+
+.social-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+
+  button.primary,
+  button.secondary {
+    width: auto;
+    min-height: 40px;
+    padding: 10px 20px;
+  }
+}
+
+.social-card button.secondary {
+  font: inherit;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-h);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

@@ -13,6 +13,7 @@ import { MyPosts } from './components/MyPosts.jsx'
 import { RecentPosts } from './components/RecentPosts.jsx'
 import { Search } from './components/Search.jsx'
 import { SearchBox } from './components/SearchBox.jsx'
+import { SocialPosting } from './components/SocialPosting.jsx'
 import { SuggestionBox } from './components/SuggestionBox.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
@@ -164,6 +165,17 @@ function App() {
       )
     } else {
       content = <AdminPanel session={session} />
+    }
+  } else if (pathname === '/social') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to schedule social posts.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else {
+      content = <SocialPosting session={session} />
     }
   } else if (pathname === '/suggestions') {
     if (!session) {
