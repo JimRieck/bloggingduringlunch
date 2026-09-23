@@ -1,0 +1,31 @@
+.linkedin-message-editor {
+  /* A short compose box, not a full post body -- overrides
+     RichTextEditor.css's blog-sized defaults (260px min-height, and a
+     sticky toolbar that only makes sense when the content below it can
+     outgrow the viewport, which a LinkedIn post can't). Several of
+     these can be stacked on one page (SchedulePostForm.jsx's
+     variations), and a sticky toolbar per instance would pile up
+     awkwardly while scrolling past them. */
+  .editor-toolbar {
+    position: static;
+  }
+
+  .editor-content {
+    min-height: 100px;
+
+    .tiptap {
+      min-height: 80px;
+    }
+  }
+}
+
+.linkedin-message-count {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text);
+  text-align: right;
+}
+
+.linkedin-message-count.over {
+  color: var(--accent);
+}

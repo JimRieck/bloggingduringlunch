@@ -7,6 +7,8 @@ import {
   describeScheduleError,
   toLocalInputValue,
 } from '../lib/socialPosting.js'
+import { linkedinTextLength } from '../lib/linkedinTextFormat.js'
+import { LinkedInMessageEditor } from './LinkedInMessageEditor.jsx'
 import './SchedulePostForm.css'
 
 // Next round 15 minutes -- a sensible default for "later today".
@@ -16,9 +18,18 @@ function defaultStart() {
   return toLocalInputValue(d)
 }
 
+function newMessage() {
+  return { id: crypto.randomUUID(), text: '' }
+}
+
 export function SchedulePostForm({ posts, connected, onCreated }) {
   const [postId, setPostId] = useState('')
-  const [messages, setMessages] = useState([''])
+  // {id, text}[], not a plain string[] -- each variation gets its own
+  // LinkedInMessageEditor instance below, keyed by id rather than array
+  // index, so removing one variation can't make React reuse another
+  // variation's editor DOM node (and its uncontrolled Tiptap content)
+  // for a different logical message.
+  const [messages, setMessages] = useState(() => [newMessage()])
   const [startsAt, setStartsAt] = useState(defaultStart)
   const [recurrence, setRecurrence] = useState('none')
   const [endsAt, setEndsAt] = useState('')
@@ -26,20 +37,28 @@ export function SchedulePostForm({ posts, connected, onCreated }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  function updateMessage(index, value) {
-    setMessages((current) => current.map((m, i) => (i === index ? value : m)))
+  function updateMessage(id, text) {
+    setMessages((current) => current.map((m) => (m.id === id ? { ...m, text } : m)))
   }
 
-  function removeMessage(index) {
-    setMessages((current) => current.filter((_, i) => i !== index))
+  function removeMessage(id) {
+    setMessages((current) => current.filter((m) => m.id !== id))
   }
 
   // mode: 'schedule' uses the chosen start time and repeat settings;
   // 'now' is a one-time post right away.
   async function submit(mode) {
-    const cleaned = messages.map((m) => m.trim()).filter(Boolean)
+    const cleaned = messages.map((m) => m.text.trim()).filter(Boolean)
     if (cleaned.length === 0) {
       setError('Write what you want to post.')
+      return
+    }
+    // The editor has no hard input cap (unlike a plain <textarea
+    // maxLength>), so this is the actual enforcement point client-side
+    // -- prepare_scheduled_social_post's own check in the database is
+    // still the real backstop.
+    if (cleaned.some((m) => linkedinTextLength(m) > MAX_MESSAGE_LENGTH)) {
+      setError(`One of your messages is over the ${MAX_MESSAGE_LENGTH}-character limit.`)
       return
     }
     if (mode === 'schedule' && !startsAt) {
@@ -89,13 +108,13 @@ export function SchedulePostForm({ posts, connected, onCreated }) {
         setError(describeScheduleError(result?.error) || 'Couldn’t post to LinkedIn. See the list below for details.')
         return
       }
-      setMessages([''])
+      setMessages([newMessage()])
       setNotice('Posted to LinkedIn.')
       return
     }
 
     setBusy(false)
-    setMessages([''])
+    setMessages([newMessage()])
     setNotice('Scheduled.')
     onCreated()
   }
@@ -118,34 +137,27 @@ export function SchedulePostForm({ posts, connected, onCreated }) {
 
       <div className="schedule-messages">
         <span className="schedule-label">What to say</span>
-        {messages.map((message, index) => (
-          <div className="schedule-message" key={index}>
-            <textarea
-              value={message}
-              onChange={(e) => updateMessage(index, e.target.value)}
-              placeholder={index === 0 ? 'Write your LinkedIn post…' : `Variation ${index + 1}`}
-              maxLength={MAX_MESSAGE_LENGTH}
-              rows={4}
-              disabled={busy}
-              aria-label={index === 0 ? 'Post text' : `Variation ${index + 1}`}
+        {messages.map((m, index) => (
+          <div className="schedule-message" key={m.id}>
+            <LinkedInMessageEditor
+              value={m.text}
+              onChange={(text) => updateMessage(m.id, text)}
+              ariaLabel={index === 0 ? 'Post text' : `Variation ${index + 1}`}
             />
-            <div className="schedule-message-meta">
-              <span>
-                {message.length}/{MAX_MESSAGE_LENGTH}
-              </span>
-              {messages.length > 1 && (
-                <button type="button" className="link" onClick={() => removeMessage(index)} disabled={busy}>
+            {messages.length > 1 && (
+              <div className="schedule-message-meta">
+                <button type="button" className="link" onClick={() => removeMessage(m.id)} disabled={busy}>
                   Remove
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ))}
         {messages.length < MAX_VARIATIONS && (
           <button
             type="button"
             className="link"
-            onClick={() => setMessages((current) => [...current, ''])}
+            onClick={() => setMessages((current) => [...current, newMessage()])}
             disabled={busy}
           >
             + Add a variation
