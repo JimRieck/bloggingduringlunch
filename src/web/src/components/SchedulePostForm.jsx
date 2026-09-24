@@ -22,7 +22,7 @@ function newMessage() {
   return { id: crypto.randomUUID(), text: '' }
 }
 
-export function SchedulePostForm({ posts, connected, onCreated }) {
+export function SchedulePostForm({ posts, connected, organizationId, userId, onCreated }) {
   const [postId, setPostId] = useState('')
   // {id, text}[], not a plain string[] -- each variation gets its own
   // LinkedInMessageEditor instance below, keyed by id rather than array
@@ -142,6 +142,8 @@ export function SchedulePostForm({ posts, connected, onCreated }) {
             <LinkedInMessageEditor
               value={m.text}
               onChange={(text) => updateMessage(m.id, text)}
+              organizationId={organizationId}
+              userId={userId}
               ariaLabel={index === 0 ? 'Post text' : `Variation ${index + 1}`}
             />
             {messages.length > 1 && (

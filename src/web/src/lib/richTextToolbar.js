@@ -70,9 +70,3 @@ export const TOOLBAR_BUTTONS = [
     active: 'codeBlock',
   },
 ]
-
-// LinkedIn post text has no headings/lists/quotes/embeds -- just
-// paragraphs with (Unicode-substituted, see lib/linkedinTextFormat.js)
-// bold/italic. Keeping the toolbar honest about that, rather than
-// showing controls that would silently do nothing once posted.
-export const BASIC_TOOLBAR_BUTTONS = TOOLBAR_BUTTONS.filter((b) => b.title === 'Bold' || b.title === 'Italic')

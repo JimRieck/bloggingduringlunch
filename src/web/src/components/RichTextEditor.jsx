@@ -2,10 +2,12 @@ import { useEditorState } from '@tiptap/react'
 import { TOOLBAR_BUTTONS, extractYoutubeId } from '../lib/richTextToolbar.js'
 import './RichTextEditor.css'
 
-// The formatting toolbar + its active-button-state wiring, shared by
-// PostForm.jsx (the full blog editor: every button, plus Link/Image/
-// Video) and LinkedInMessageEditor.jsx (buttons=BASIC_TOOLBAR_BUTTONS,
-// showLink/showVideo off -- see lib/richTextToolbar.js for why).
+// The formatting toolbar + its active-button-state wiring, shared as-is
+// (same buttons, same Link/Image/Video) by PostForm.jsx (blog posts)
+// and LinkedInMessageEditor.jsx (LinkedIn posts) -- the `buttons`/
+// `showLink`/`showVideo` params exist for a future caller that
+// genuinely needs a narrower toolbar, not because either current one
+// does.
 export function EditorToolbar({ editor, buttons = TOOLBAR_BUTTONS, onInsertImage, showLink = true, showVideo = true }) {
   const activeState = useEditorState({
     editor,
