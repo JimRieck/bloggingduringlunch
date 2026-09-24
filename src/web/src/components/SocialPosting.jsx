@@ -13,6 +13,7 @@ export function SocialPosting({ session }) {
   const [schedules, setSchedules] = useState([])
   const [runs, setRuns] = useState([])
   const [posts, setPosts] = useState([])
+  const [organizationId, setOrganizationId] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
   // LinkedIn sends the browser back here with ?linkedin=connected|error.
   const [returned] = useState(() => new URLSearchParams(window.location.search).get('linkedin'))
@@ -26,29 +27,40 @@ export function SocialPosting({ session }) {
     if (!featureFlags.linkedin_posting) return
     let cancelled = false
     async function load() {
-      const [{ data: conn }, { data: scheduleRows }, { data: runRows }, { data: postRows }] = await Promise.all([
-        supabase.rpc('my_linkedin_connection'),
-        supabase
-          .from('scheduled_social_posts')
-          .select('id, post_id, messages, next_run_at, timezone, recurrence, ends_at, status, run_count, last_error')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('social_post_runs')
-          .select('schedule_id, status, external_id')
-          .order('ran_at', { ascending: false })
-          .limit(200),
-        supabase
-          .from('posts')
-          .select('id, title')
-          .eq('author_id', session.user.id)
-          .eq('status', 'published')
-          .order('published_at', { ascending: false }),
-      ])
+      const [{ data: conn }, { data: scheduleRows }, { data: runRows }, { data: postRows }, { data: membership }] =
+        await Promise.all([
+          supabase.rpc('my_linkedin_connection'),
+          supabase
+            .from('scheduled_social_posts')
+            .select('id, post_id, messages, next_run_at, timezone, recurrence, ends_at, status, run_count, last_error')
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('social_post_runs')
+            .select('schedule_id, status, external_id')
+            .order('ran_at', { ascending: false })
+            .limit(200),
+          supabase
+            .from('posts')
+            .select('id, title')
+            .eq('author_id', session.user.id)
+            .eq('status', 'published')
+            .order('published_at', { ascending: false }),
+          // For LinkedInMessageEditor's own image picker -- images
+          // upload into the author's org, same as the blog editor's.
+          supabase
+            .from('memberships')
+            .select('organization_id')
+            .eq('user_id', session.user.id)
+            .in('role', ['owner', 'editor'])
+            .limit(1)
+            .maybeSingle(),
+        ])
       if (cancelled) return
       setConnection(conn?.[0] ?? null)
       setSchedules(scheduleRows ?? [])
       setRuns(runRows ?? [])
       setPosts(postRows ?? [])
+      setOrganizationId(membership?.organization_id ?? null)
     }
     load()
     return () => {
@@ -92,7 +104,13 @@ export function SocialPosting({ session }) {
       ) : (
         <>
           <LinkedInConnection connection={connection} onChanged={refresh} />
-          <SchedulePostForm posts={posts} connected={connected} onCreated={refresh} />
+          <SchedulePostForm
+            posts={posts}
+            connected={connected}
+            organizationId={organizationId}
+            userId={session.user.id}
+            onCreated={refresh}
+          />
           <ScheduledPostList schedules={schedules} posts={posts} runs={runs} onChanged={refresh} />
         </>
       )}
