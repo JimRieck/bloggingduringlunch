@@ -1,17 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import DOMPurify from 'dompurify'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { StarRating } from './StarRating.jsx'
 import { CommentSection } from './CommentSection.jsx'
+import { PostArticle } from './PostArticle.jsx'
 import './TenantBlog.css'
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
 
 // Two-step fetch, not an embed -- same reasoning as everywhere else in
 // this file: `categories`/`tags` have their own RLS, and PostgREST
@@ -63,31 +55,6 @@ export function TenantBlog({ slug, postSlug, session }) {
   const [organization, setOrganization] = useState(null)
   const [posts, setPosts] = useState([])
   const [post, setPost] = useState(null)
-  const bodyContainerRef = useRef(null)
-
-  // Post bodies are inserted via dangerouslySetInnerHTML, so a
-  // YoutubeEmbed node only ever survives sanitization as the inert
-  // placeholder div YoutubeEmbedExtension.js renders it as (see that
-  // file's comment) -- this hydrates each one into a real <iframe> via
-  // plain DOM APIs after React commits, never by trusting HTML the
-  // sanitizer approved. The video id is re-validated here too, even
-  // though only our own editor ever produces this markup.
-  useEffect(() => {
-    const container = bodyContainerRef.current
-    if (!container) return
-    for (const placeholder of container.querySelectorAll('[data-type="youtube-embed"]')) {
-      if (placeholder.querySelector('iframe')) continue
-      const videoId = placeholder.getAttribute('data-video-id')
-      if (!videoId || !/^[\w-]{6,20}$/.test(videoId)) continue
-      const iframe = document.createElement('iframe')
-      iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}`
-      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-      iframe.allowFullscreen = true
-      iframe.frameBorder = '0'
-      placeholder.classList.add('youtube-embed-wrapper')
-      placeholder.appendChild(iframe)
-    }
-  }, [post, posts])
 
   useEffect(() => {
     let cancelled = false
@@ -221,34 +188,11 @@ export function TenantBlog({ slug, postSlug, session }) {
           </a>
           <h1>{organization.name}</h1>
         </header>
-        <main id="tenant-posts" ref={bodyContainerRef}>
-          <article className="post-summary">
-            {post.thumbnail_url && (
-              <img src={post.thumbnail_url} alt="" className="post-thumbnail" />
-            )}
-            <h2>{post.title}</h2>
-            <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
-            {(post.categories.length > 0 || post.tags.length > 0) && (
-              <div className="post-taxonomy">
-                {post.categories.map((c) => (
-                  <span className="post-category-badge" key={c}>
-                    {c}
-                  </span>
-                ))}
-                {post.tags.map((t) => (
-                  <span className="post-tag-badge" key={t}>
-                    #{t}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div
-              className="post-body"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
-            />
+        <main id="tenant-posts">
+          <PostArticle post={post}>
             <StarRating postId={post.id} session={session} />
             <CommentSection postId={post.id} session={session} />
-          </article>
+          </PostArticle>
           <a className="link" href={`/blog/${slug}`}>
             ← All posts from {organization.name}
           </a>
@@ -265,37 +209,11 @@ export function TenantBlog({ slug, postSlug, session }) {
         </a>
         <h1>{organization.name}</h1>
       </header>
-      <main id="tenant-posts" ref={bodyContainerRef}>
+      <main id="tenant-posts">
         {posts.length === 0 ? (
           <p className="tenant-empty">No posts published yet.</p>
         ) : (
-          posts.map((p) => (
-            <article className="post-summary" id={p.slug} key={p.slug}>
-              {p.thumbnail_url && <img src={p.thumbnail_url} alt="" className="post-thumbnail" />}
-              <h2>
-                <a href={`/blog/${slug}/${p.slug}`}>{p.title}</a>
-              </h2>
-              <time dateTime={p.published_at}>{formatDate(p.published_at)}</time>
-              {(p.categories.length > 0 || p.tags.length > 0) && (
-                <div className="post-taxonomy">
-                  {p.categories.map((c) => (
-                    <span className="post-category-badge" key={c}>
-                      {c}
-                    </span>
-                  ))}
-                  {p.tags.map((t) => (
-                    <span className="post-tag-badge" key={t}>
-                      #{t}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div
-                className="post-body"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(p.content) }}
-              />
-            </article>
-          ))
+          posts.map((p) => <PostArticle post={p} titleHref={`/blog/${slug}/${p.slug}`} id={p.slug} key={p.slug} />)
         )}
       </main>
     </div>

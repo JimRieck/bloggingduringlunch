@@ -9,6 +9,7 @@ import { Callout } from '../lib/CalloutExtension.js'
 import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
 import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
+import { savePostPreview } from '../lib/postPreview.js'
 import { ImagePicker } from './ImagePicker.jsx'
 import { TitleSuggestModal } from './TitleSuggestModal.jsx'
 import { GeneratePostModal } from './GeneratePostModal.jsx'
@@ -36,6 +37,7 @@ export function PostForm({ session, postId, onSaved }) {
   const [titleSuggestOpen, setTitleSuggestOpen] = useState(false)
   const [generatePostOpen, setGeneratePostOpen] = useState(false)
   const [generatingImage, setGeneratingImage] = useState(false)
+  const [previewId] = useState(() => postId ?? crypto.randomUUID())
   const featureFlags = useFeatureFlags()
 
   const editor = useEditor({
@@ -427,6 +429,32 @@ export function PostForm({ session, postId, onSaved }) {
     setGeneratePostOpen(false)
   }
 
+  // Opens the post as readers will see it, in another tab, without
+  // saving anything: the current editor state is stashed in
+  // localStorage and /posts/preview (PostPreview.jsx) renders it. The
+  // named window target means a second click refreshes the same preview
+  // tab instead of opening another.
+  function handlePreview() {
+    try {
+      savePostPreview(previewId, {
+        organizationName,
+        post: {
+          title: title.trim() || 'Untitled post',
+          content: editor.getHTML(),
+          thumbnail_url: thumbnailUrl,
+          published_at: post?.published_at ?? new Date().toISOString(),
+          categories: categories.filter((c) => selectedCategoryIds.has(c.id)).map((c) => c.name),
+          tags: tagChips,
+        },
+      })
+    } catch {
+      setError('Couldn’t open the preview. Your browser may be blocking storage for this site.')
+      return
+    }
+    setError('')
+    window.open(`/posts/preview?id=${previewId}`, `post-preview-${previewId}`)
+  }
+
   // Same "confirm before losing work" bar as handleGeneratedContent --
   // only prompts when there's actually something to lose, so cancelling
   // out of a blank form is instant.
@@ -628,6 +656,15 @@ export function PostForm({ session, postId, onSaved }) {
       <div className="post-form-actions">
         <button type="button" className="secondary" disabled={saving} onClick={handleCancel}>
           Cancel
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={isBodyEmpty && !title.trim()}
+          title={isBodyEmpty && !title.trim() ? 'Write something first' : 'Open a preview in a new tab'}
+          onClick={handlePreview}
+        >
+          Preview
         </button>
         <button type="button" className="secondary" disabled={saving} onClick={() => handleSave('draft')}>
           Save draft
