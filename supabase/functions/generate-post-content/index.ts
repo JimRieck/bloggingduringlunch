@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
 import { getFeatureFlags } from '../_shared/featureFlags.ts'
+import { recordAiUsage } from '../_shared/aiUsage.ts'
 
 // Writing a coherent draft is a genuinely different kind of task than
 // the short-label classification the other two functions in this repo
@@ -78,13 +79,17 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) {
+    await recordAiUsage(caller.id, 'post_draft', 'not_configured')
     return json({ error: 'not_configured' }, 500)
   }
 
+  let content: string
   try {
-    const content = await generateContent(description, apiKey)
-    return json({ content })
+    content = await generateContent(description, apiKey)
   } catch {
+    await recordAiUsage(caller.id, 'post_draft', 'generation_failed')
     return json({ error: 'generation_failed' }, 502)
   }
+  await recordAiUsage(caller.id, 'post_draft')
+  return json({ content })
 })

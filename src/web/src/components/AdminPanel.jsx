@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { SUGGESTION_STATUSES, SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import { SiteStats } from './SiteStats.jsx'
+import { AiUsage } from './AiUsage.jsx'
 import { Accordion } from './Accordion.jsx'
 import './UserDirectory.css'
 import './AdminPanel.css'
@@ -138,6 +139,10 @@ export function AdminPanel({ session }) {
 
       <Accordion title="Site traffic" defaultOpen={false}>
         <SiteStats />
+      </Accordion>
+
+      <Accordion title="AI usage" defaultOpen={false}>
+        <AiUsage />
       </Accordion>
 
       <Accordion title="Feature flags" defaultOpen={false}>

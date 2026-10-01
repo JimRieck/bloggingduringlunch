@@ -123,6 +123,7 @@ export function BulkAutoTag({ session }) {
         content: (post.content || '').replace(/<[^>]+>/g, ' '),
         existingCategories: existingCategories.map((c) => c.name),
         existingTags: authorTagsRef.map((t) => t.name),
+        source: 'bulk',
       },
     })
     if (suggestError || data?.error) {
