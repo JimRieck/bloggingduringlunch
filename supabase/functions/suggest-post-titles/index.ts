@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
 import { getFeatureFlags } from '../_shared/featureFlags.ts'
+import { recordAiUsage } from '../_shared/aiUsage.ts'
 
 // A cheap/fast model is plenty for "read a post, suggest some titles" --
 // this isn't a reasoning task.
@@ -70,13 +71,17 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) {
+    await recordAiUsage(caller.id, 'titles', 'not_configured')
     return json({ error: 'not_configured' }, 500)
   }
 
+  let titles: string[]
   try {
-    const titles = await suggestTitles(content, apiKey)
-    return json({ titles })
+    titles = await suggestTitles(content, apiKey)
   } catch {
+    await recordAiUsage(caller.id, 'titles', 'suggestion_failed')
     return json({ error: 'suggestion_failed' }, 502)
   }
+  await recordAiUsage(caller.id, 'titles')
+  return json({ titles })
 })

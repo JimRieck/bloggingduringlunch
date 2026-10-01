@@ -66,6 +66,13 @@
   opacity: 0.5;
 }
 
+.admin-subheading {
+  margin: 20px 0 8px;
+  font-size: 16px;
+  text-align: left;
+  color: var(--text-h);
+}
+
 .suggestion-cell {
   max-width: 360px;
   white-space: pre-wrap;

@@ -5,6 +5,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
 import { getFeatureFlags } from '../_shared/featureFlags.ts'
+import { recordAiUsage } from '../_shared/aiUsage.ts'
 
 // Cheap/fast text model for the first hop (deriving an image prompt);
 // image generation itself has no Anthropic equivalent, hence OpenAI for
@@ -103,6 +104,7 @@ Deno.serve(async (req) => {
   const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
   const openaiKey = Deno.env.get('OPENAI_API_KEY')
   if (!anthropicKey || !openaiKey) {
+    await recordAiUsage(caller.id, 'image', 'not_configured')
     return json({ error: 'not_configured' }, 500)
   }
 
@@ -111,10 +113,10 @@ Deno.serve(async (req) => {
     const description = await describeImage(title, content, anthropicKey)
     imageBytes = await generateImage(description, openaiKey)
   } catch (err) {
-    if (err instanceof Error && err.message === 'insufficient_credits') {
-      return json({ error: 'insufficient_credits' }, 502)
-    }
-    return json({ error: 'generation_failed' }, 502)
+    const code =
+      err instanceof Error && err.message === 'insufficient_credits' ? 'insufficient_credits' : 'generation_failed'
+    await recordAiUsage(caller.id, 'image', code)
+    return json({ error: code }, 502)
   }
 
   // Caller-scoped client, not service-role -- the existing post_images/
@@ -135,6 +137,7 @@ Deno.serve(async (req) => {
     .from('post-images')
     .upload(path, imageBytes, { contentType: 'image/png' })
   if (uploadError) {
+    await recordAiUsage(caller.id, 'image', 'upload_failed')
     return json({ error: 'upload_failed' }, 502)
   }
 
@@ -149,8 +152,10 @@ Deno.serve(async (req) => {
     storage_path: path,
   })
   if (insertError) {
+    await recordAiUsage(caller.id, 'image', 'upload_failed')
     return json({ error: 'upload_failed' }, 502)
   }
 
+  await recordAiUsage(caller.id, 'image')
   return json({ url: publicUrl })
 })

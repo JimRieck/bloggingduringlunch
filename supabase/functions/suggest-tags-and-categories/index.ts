@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { json } from '../_shared/response.ts'
 import { getCaller } from '../_shared/auth.ts'
 import { getFeatureFlags } from '../_shared/featureFlags.ts'
+import { recordAiUsage } from '../_shared/aiUsage.ts'
 
 // A cheap/fast model is plenty for "read a post, suggest some tags" --
 // this isn't a reasoning task, and it may run once per post across a
@@ -82,7 +83,13 @@ Deno.serve(async (req) => {
     return json({ error: 'feature_disabled' }, 403)
   }
 
-  let body: { title?: unknown; content?: unknown; existingCategories?: unknown; existingTags?: unknown }
+  let body: {
+    title?: unknown
+    content?: unknown
+    existingCategories?: unknown
+    existingTags?: unknown
+    source?: unknown
+  }
   try {
     body = await req.json()
   } catch {
@@ -97,21 +104,31 @@ Deno.serve(async (req) => {
     return json({ error: 'invalid_body' }, 400)
   }
 
+  // Only a label for the usage log on /admin: the bulk auto-tag page
+  // makes one of these calls per post, and is counted separately from
+  // the editor's own "Auto-suggest" button.
+  const feature = body.source === 'bulk' ? 'bulk_auto_tag' : 'tags_and_categories'
+
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) {
+    await recordAiUsage(caller.id, feature, 'not_configured')
     return json({ error: 'not_configured' }, 500)
   }
 
+  let result: { categories: string[]; tags: string[] }
   try {
-    const result = await suggest(title, content, existingCategories, existingTags, apiKey)
-    // Only one of the two might be enabled -- e.g. category generation
-    // switched off while tag generation stays on -- so whichever half is
-    // disabled is dropped from the response rather than applied.
-    return json({
-      categories: flags.ai_category_generation ? result.categories : [],
-      tags: flags.ai_tag_generation ? result.tags : [],
-    })
+    result = await suggest(title, content, existingCategories, existingTags, apiKey)
   } catch {
+    await recordAiUsage(caller.id, feature, 'suggestion_failed')
     return json({ error: 'suggestion_failed' }, 502)
   }
+  await recordAiUsage(caller.id, feature)
+
+  // Only one of the two might be enabled -- e.g. category generation
+  // switched off while tag generation stays on -- so whichever half is
+  // disabled is dropped from the response rather than applied.
+  return json({
+    categories: flags.ai_category_generation ? result.categories : [],
+    tags: flags.ai_tag_generation ? result.tags : [],
+  })
 })

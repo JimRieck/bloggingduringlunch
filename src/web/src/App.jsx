@@ -9,6 +9,7 @@ import { LandingNav } from './components/LandingNav.jsx'
 import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
+import { PostPreview } from './components/PostPreview.jsx'
 import { MyPosts } from './components/MyPosts.jsx'
 import { RecentPosts } from './components/RecentPosts.jsx'
 import { Search } from './components/Search.jsx'
@@ -129,6 +130,12 @@ function App() {
   if (pathname.startsWith('/blog/')) {
     const [orgSlug, postSlug] = pathname.slice('/blog/'.length).split('/')
     return <TenantBlog slug={orgSlug} postSlug={postSlug || undefined} session={session} />
+  }
+
+  // Rendered bare, like the published blog above, not inside the app
+  // shell -- it's showing what readers will see.
+  if (pathname === '/posts/preview') {
+    return <PostPreview previewId={new URLSearchParams(window.location.search).get('id')} />
   }
 
   let content
