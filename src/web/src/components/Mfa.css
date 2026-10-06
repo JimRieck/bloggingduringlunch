@@ -1,0 +1,54 @@
+.mfa-card h2 {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* The QR SVG is black on transparent; a white backing keeps it
+   scannable in dark mode. */
+.mfa-qr {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 16px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 6px;
+}
+
+.mfa-app-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--accent);
+  text-align: center;
+}
+
+.mfa-card .auth-links button.link {
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.mfa-secret-label,
+.mfa-help {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
+.mfa-help {
+  margin-top: 16px;
+}
+
+.mfa-secret {
+  display: block;
+  margin-bottom: 20px;
+  padding: 8px 10px;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  word-break: break-all;
+  user-select: all;
+  border-radius: 4px;
+  background: var(--code-bg);
+}

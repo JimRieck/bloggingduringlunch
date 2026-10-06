@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { getCaller } from '../_shared/auth.ts'
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -27,23 +28,12 @@ Deno.serve(async (req) => {
     return json({ error: 'invalid_body' }, 400)
   }
 
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
-    return json({ error: 'unauthorized' }, 401)
-  }
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
   // Identify the caller from their own JWT -- never trust anything the
   // client claims about who they are or whether they're an admin.
-  const callerClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  })
-  const {
-    data: { user: caller },
-  } = await callerClient.auth.getUser()
+  const caller = await getCaller(req)
   if (!caller) {
     return json({ error: 'unauthorized' }, 401)
   }

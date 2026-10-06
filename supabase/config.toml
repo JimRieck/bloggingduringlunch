@@ -302,9 +302,12 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+# Required for every account (see 20261006100000_require_mfa.sql). The
+# hosted project's setting lives in the dashboard (Authentication ->
+# Multi-Factor), not here -- the deploy pipeline doesn't push this file.
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]

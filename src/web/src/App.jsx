@@ -6,6 +6,8 @@ import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { BulkAutoTag } from './components/BulkAutoTag.jsx'
 import { ImportFromWordPress } from './components/ImportFromWordPress.jsx'
 import { LandingNav } from './components/LandingNav.jsx'
+import { MfaChallenge } from './components/MfaChallenge.jsx'
+import { MfaSetup } from './components/MfaSetup.jsx'
 import { NavPane } from './components/NavPane.jsx'
 import { ProfileSetupBanner } from './components/ProfileSetupBanner.jsx'
 import { PostForm } from './components/PostForm.jsx'
@@ -20,6 +22,7 @@ import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
 import { supabase } from './lib/supabaseClient.js'
 import { getTenantSlugFromHostname } from './lib/tenant.js'
+import { mfaStep } from './lib/mfa.js'
 
 function App() {
   const tenantSlug = getTenantSlugFromHostname()
@@ -31,6 +34,9 @@ function App() {
   const [isSiteAdmin, setIsSiteAdmin] = useState(false)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [disabledNotice, setDisabledNotice] = useState(false)
+  // The session, but only once two-factor is done -- before that the
+  // database refuses every request, so there's nothing to load yet.
+  const signedIn = session && !mfaStep(session) ? session : null
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -52,14 +58,14 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!session) return
+    if (!signedIn) return
     supabase
       .from('profiles')
       .select('display_name, avatar_url, profile_setup_dismissed, disabled')
-      .eq('id', session.user.id)
+      .eq('id', signedIn.user.id)
       .single()
       .then(({ data }) => setProfile(data))
-  }, [session])
+  }, [signedIn])
 
   useEffect(() => {
     // Auth-level bans (see AdminPanel.jsx) block new logins/refreshes
@@ -72,55 +78,64 @@ function App() {
   }, [profile])
 
   useEffect(() => {
-    if (!session) return
+    if (!signedIn) return
     supabase
       .from('profiles')
       .select('is_site_admin')
-      .eq('id', session.user.id)
+      .eq('id', signedIn.user.id)
       .maybeSingle()
       .then(({ data }) => setIsSiteAdmin(data?.is_site_admin ?? false))
-  }, [session])
+  }, [signedIn])
 
   useEffect(() => {
-    if (!session) return
+    if (!signedIn) return
     supabase
       .from('memberships')
       .select('organization_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', signedIn.user.id)
       .eq('role', 'owner')
       .maybeSingle()
       .then(({ data }) => setOwnedOrg(data?.organization_id ?? null))
-  }, [session])
+  }, [signedIn])
 
   useEffect(() => {
-    if (!session) return
+    if (!signedIn) return
     supabase
       .from('memberships')
       .select('role, organizations(id, name, slug)')
-      .eq('user_id', session.user.id)
+      .eq('user_id', signedIn.user.id)
       .in('role', ['owner', 'editor'])
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setAuthorOrg(data ? { ...data.organizations, role: data.role } : null))
-  }, [session])
+  }, [signedIn])
 
   // Separate from ownedOrg/authorOrg -- this is specifically "can this
   // person rename the org," which the organizations RLS policy grants
   // to owner OR admin (is_org_admin), not just an owner (ownedOrg) or a
   // post-author (authorOrg, which also admits 'editor').
   useEffect(() => {
-    if (!session) return
+    if (!signedIn) return
     supabase
       .from('memberships')
       .select('role, organizations(id, name)')
-      .eq('user_id', session.user.id)
+      .eq('user_id', signedIn.user.id)
       .in('role', ['owner', 'admin'])
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setOrgAdmin(data ? { ...data.organizations, role: data.role } : null))
-  }, [session])
+  }, [signedIn])
 
   const pathname = window.location.pathname
+
+  // Two-factor is required for every account: until the authenticator
+  // code is entered, a password-only login sees nothing else -- the
+  // database refuses its requests anyway. Comes before the password
+  // reset screen too, because Supabase won't change the password of an
+  // account with an authenticator until the code has been entered.
+  const step = mfaStep(session)
+  if (step === 'setup') return <MfaSetup />
+  if (step === 'challenge') return <MfaChallenge />
 
   if (tenantSlug) {
     const postSlug = pathname.slice(1) || undefined

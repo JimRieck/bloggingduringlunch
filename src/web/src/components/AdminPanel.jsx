@@ -25,6 +25,8 @@ export function AdminPanel({ session }) {
   const [users, setUsers] = useState(null)
   const [error, setError] = useState('')
   const [pendingId, setPendingId] = useState(null)
+  const [pendingMfaId, setPendingMfaId] = useState(null)
+  const [notice, setNotice] = useState('')
   const [flags, setFlags] = useState(null)
   const [flagsError, setFlagsError] = useState('')
   const [pendingFlagKey, setPendingFlagKey] = useState(null)
@@ -107,6 +109,28 @@ export function AdminPanel({ session }) {
       return
     }
     setSuggestions((current) => current.map((s) => (s.id === suggestion.id ? { ...s, status } : s)))
+  }
+
+  // For someone who lost their phone: removes their authenticator, so
+  // their next login walks them through setting up a new one.
+  async function resetMfa(user) {
+    if (
+      !window.confirm(
+        `Reset two-factor for ${user.email}? Anyone who knows their password will be able to set up a new authenticator on their next login, so make sure the request really came from them.`,
+      )
+    ) {
+      return
+    }
+    setError('')
+    setNotice('')
+    setPendingMfaId(user.id)
+    const { error: invokeError } = await supabase.functions.invoke('admin-reset-mfa', { body: { userId: user.id } })
+    setPendingMfaId(null)
+    if (invokeError) {
+      setError(`Couldn't reset two-factor for ${user.email}. Try again.`)
+      return
+    }
+    setNotice(`Two-factor reset for ${user.email}. They'll set up a new authenticator on their next login.`)
   }
 
   async function toggleDisabled(user) {
@@ -240,6 +264,11 @@ export function AdminPanel({ session }) {
             {error}
           </p>
         )}
+        {notice && (
+          <p className="auth-notice" role="status">
+            {notice}
+          </p>
+        )}
         <div className="directory-table-wrap">
           <table className="directory-table">
             <thead>
@@ -247,6 +276,7 @@ export function AdminPanel({ session }) {
                 <th>User</th>
                 <th>Type</th>
                 <th>Active</th>
+                <th>Two-factor</th>
               </tr>
             </thead>
             <tbody>
@@ -271,6 +301,19 @@ export function AdminPanel({ session }) {
                         />
                         <span className="flag-toggle-track" aria-hidden="true" />
                       </label>
+                    )}
+                  </td>
+                  <td>
+                    {user.id !== session.user.id && (
+                      <button
+                        type="button"
+                        className="admin-row-action"
+                        disabled={pendingMfaId === user.id}
+                        onClick={() => resetMfa(user)}
+                        aria-label={`Reset two-factor for ${user.email}`}
+                      >
+                        Reset
+                      </button>
                     )}
                   </td>
                 </tr>

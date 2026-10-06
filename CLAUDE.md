@@ -2,6 +2,19 @@
 
 See [ROADMAP.md](ROADMAP.md) for current build status, architecture, and what's done vs. open.
 
+## Two-factor authentication is required for every account
+
+A logged-in session only works after the authenticator code step ("aal2").
+The database rejects anything less (`public.enforce_mfa`, run before every
+API request), so when adding code:
+
+- New Edge Functions identify the caller with `getCaller` from
+  `supabase/functions/_shared/auth.ts` (it rejects password-only tokens),
+  never a bare `auth.getUser()`.
+- Integration tests create users through `confirmSignup` and log back in
+  with `signInWithMfa` (`src/web/tests/helpers/testClients.js`); a plain
+  `signInWithPassword` client gets `403 mfa_required` from the database.
+
 ## Mobile support is a requirement, not an afterthought
 
 This site must work on real phones — as far back as a Galaxy S21 and the

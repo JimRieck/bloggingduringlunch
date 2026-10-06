@@ -17,7 +17,7 @@
 // exact regardless of what any other suite inserts around "now"
 // (every other suite backdates nothing; it all stamps real "now()").
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, confirmSignup, createTestClient, signInWithMfa } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -98,7 +98,7 @@ describe('site stats RPCs: site_views_by_day / site_views_by_author', () => {
     await adminClient.from('profiles').update({ is_site_admin: true }).eq('id', adminUser.id)
 
     adminAuthClient = createTestClient()
-    await adminAuthClient.auth.signInWithPassword({ email: emailFor('stats-admin'), password: PASSWORD })
+    await signInWithMfa(adminAuthClient, emailFor('stats-admin'), PASSWORD)
 
     strangerClient = createTestClient()
     await signUp(strangerClient, emailFor('stats-stranger'), {

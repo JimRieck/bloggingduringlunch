@@ -15,7 +15,7 @@
 // user_directory_admin view from
 // 20260911190916_gate_user_directory_to_site_admins.sql.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, confirmSignup, createTestClient, signInWithMfa } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
@@ -78,7 +78,7 @@ describe('site admin: disable accounts', () => {
     await adminClient.from('profiles').update({ is_site_admin: true }).eq('id', adminId)
 
     adminAuthClient = createTestClient()
-    await adminAuthClient.auth.signInWithPassword({ email: emailFor('site-admin'), password: PASSWORD })
+    await signInWithMfa(adminAuthClient, emailFor('site-admin'), PASSWORD)
 
     targetClient = createTestClient()
     const { user: target } = await signUp(targetClient, emailFor('disable-target'), {
