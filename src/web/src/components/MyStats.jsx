@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { ViewsLineChart } from './ViewsLineChart.jsx'
 import { PostsPieChart } from './PostsPieChart.jsx'
-import { PostViewsTable } from './PostViewsTable.jsx'
 import './UserDirectory.css'
 import './MyStats.css'
 
@@ -170,20 +169,14 @@ export function MyStats({ posts }) {
         <p className="directory-status">Loading…</p>
       ) : effectiveSelectedPostId === 'all' ? (
         <>
-          <PostsPieChart data={byPost} />
+          <PostsPieChart data={byPost} onSelect={(post) => setSelectedPostId(post.id)} />
           {visitedPosts.length > 0 && (
-            <>
-              <PostViewsTable
-                heading={`Every post viewed (${visitedPosts.length})`}
-                rows={visitedPosts}
-                onSelect={(row) => setSelectedPostId(row.id)}
-              />
-              <p className="post-views-note">
-                Select a post to see its views day by day.
-                {unviewedCount > 0 &&
-                  ` ${unviewedCount} other published post${unviewedCount === 1 ? '' : 's'} had no views in this range.`}
-              </p>
-            </>
+            <p className="post-views-note">
+              {visitedPosts.length} post{visitedPosts.length === 1 ? '' : 's'} viewed. Select one to see its views day
+              by day.
+              {unviewedCount > 0 &&
+                ` ${unviewedCount} other published post${unviewedCount === 1 ? '' : 's'} had no views in this range.`}
+            </p>
           )}
         </>
       ) : (

@@ -4,14 +4,11 @@ const SIZE = 200
 const RADIUS = 90
 const CENTER = SIZE / 2
 const GAP_DEGREES = 1.5
-// Pie/donut slices are only reliably distinguishable by color up to
-// about this many -- past it, adjacent-slice contrast degrades and
-// "which color was which" stops working. The rest fold into "Other"
-// rather than adding a 7th/8th hue (see the dataviz skill's
-// anti-patterns: "<= 6 segments" for part-to-whole at a glance).
-const MAX_SLICES = 6
+// Six categorical colours is about the limit for telling hues apart, so
+// past six the palette repeats (see sliceColor) and the legend --
+// colour plus title plus exact count -- is what identifies a slice.
 const SLICE_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--cat-4)', 'var(--cat-5)', 'var(--cat-6)']
-const OTHER_COLOR = 'var(--cat-other)'
+const NEUTRAL_COLOR = 'var(--cat-other)'
 
 function polarToCartesian(angleDeg) {
   const rad = ((angleDeg - 90) * Math.PI) / 180
@@ -25,29 +22,40 @@ function arcPath(startAngle, endAngle) {
   return `M ${CENTER} ${CENTER} L ${start.x} ${start.y} A ${RADIUS} ${RADIUS} 0 ${largeArc} 0 ${end.x} ${end.y} Z`
 }
 
-export function PostsPieChart({ data }) {
+// A slice's colour: the palette in order, repeating past 6 -- which
+// never puts the same colour on two neighbouring slices, except where
+// the circle closes (last next to first); that one gets the neutral
+// colour instead.
+function sliceColor(index, count) {
+  const color = SLICE_COLORS[index % SLICE_COLORS.length]
+  const wrapsOntoFirst = count > 1 && index === count - 1 && index % SLICE_COLORS.length === 0
+  return wrapsOntoFirst ? NEUTRAL_COLOR : color
+}
+
+function percentLabel(views, total) {
+  const percent = (views / total) * 100
+  return percent > 0 && percent < 1 ? '<1%' : `${Math.round(percent)}%`
+}
+
+// Every post with views gets its own slice and legend row, most-viewed
+// first -- no "Other" bucket, so the legend is the full list. Small
+// posts become thin slivers; the legend's exact numbers are what make
+// them readable. `onSelect`, if given, makes each legend row a button.
+export function PostsPieChart({ data, onSelect }) {
   const [hoverId, setHoverId] = useState(null)
 
   const { slices, total } = useMemo(() => {
     const total = data.reduce((sum, d) => sum + d.views, 0)
     const sorted = [...data].filter((d) => d.views > 0).sort((a, b) => b.views - a.views)
 
-    let combined = sorted
-    if (sorted.length > MAX_SLICES) {
-      const top = sorted.slice(0, MAX_SLICES - 1)
-      const otherViews = sorted.slice(MAX_SLICES - 1).reduce((sum, d) => sum + d.views, 0)
-      combined = [...top, { id: '__other__', title: 'Other', views: otherViews }]
-    }
-
-    const slices = combined.reduce((acc, d, i) => {
+    const slices = sorted.reduce((acc, d, i) => {
       const startAngle = acc.length > 0 ? acc[acc.length - 1].endAngle : 0
-      const fraction = total > 0 ? d.views / total : 0
       acc.push({
         ...d,
         startAngle,
-        endAngle: startAngle + fraction * 360,
-        color: d.id === '__other__' ? OTHER_COLOR : SLICE_COLORS[i % SLICE_COLORS.length],
-        percent: total > 0 ? Math.round((d.views / total) * 100) : 0,
+        endAngle: startAngle + (d.views / total) * 360,
+        color: sliceColor(i, sorted.length),
+        percent: percentLabel(d.views, total),
       })
       return acc
     }, [])
@@ -78,7 +86,7 @@ export function PostsPieChart({ data }) {
               onBlur={() => setHoverId(null)}
             >
               <title>
-                {s.title}: {s.views} view{s.views === 1 ? '' : 's'} ({s.percent}%)
+                {s.title}: {s.views} view{s.views === 1 ? '' : 's'} ({s.percent})
               </title>
             </path>
           )
@@ -89,20 +97,39 @@ export function PostsPieChart({ data }) {
           visible, not gated behind hover, since a pie's colors alone
           can't be reliably compared. */}
       <ul className="pie-legend">
-        {slices.map((s) => (
-          <li
-            key={s.id}
-            className={hoverId === s.id ? 'pie-legend-hover' : ''}
-            onMouseEnter={() => setHoverId(s.id)}
-            onMouseLeave={() => setHoverId(null)}
-          >
-            <span className="pie-swatch" style={{ background: s.color }} aria-hidden="true" />
-            <span className="pie-legend-title">{s.title}</span>
-            <span className="pie-legend-value">
-              {s.views} ({s.percent}%)
-            </span>
-          </li>
-        ))}
+        {slices.map((s) => {
+          const content = (
+            <>
+              <span className="pie-swatch" style={{ background: s.color }} aria-hidden="true" />
+              <span className="pie-legend-title">{s.title}</span>
+              <span className="pie-legend-value">
+                {s.views} ({s.percent})
+              </span>
+            </>
+          )
+          return (
+            <li
+              key={s.id}
+              className={hoverId === s.id ? 'pie-legend-hover' : ''}
+              onMouseEnter={() => setHoverId(s.id)}
+              onMouseLeave={() => setHoverId(null)}
+            >
+              {onSelect ? (
+                <button
+                  type="button"
+                  className="pie-legend-row"
+                  onClick={() => onSelect(s)}
+                  onFocus={() => setHoverId(s.id)}
+                  onBlur={() => setHoverId(null)}
+                >
+                  {content}
+                </button>
+              ) : (
+                <span className="pie-legend-row">{content}</span>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
