@@ -10,7 +10,7 @@
 // with the same name), not just in isolation with guaranteed-unique
 // names.
 import { afterAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, completeMfaSetup, confirmSignup, createTestClient } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const USER_COUNT = 100
@@ -72,17 +72,24 @@ async function signUpOne(index, joinableOrgs) {
   })
 
   if (error) {
-    return { intent, email, error }
+    return { intent, email, step: 'signup', error }
   }
   createdUserIds.push(data.user.id)
 
   // signUp() no longer returns a session directly (enable_confirmations
   // is on) -- this completes the same confirmation-email flow a real
   // user's click does, via the real email Supabase sent to Mailpit.
+  // Then the required two-factor setup, as its own step so a failure
+  // says which half broke.
   try {
-    await confirmSignup(client, email)
+    await confirmSignup(client, email, { mfa: false })
   } catch (confirmError) {
-    return { intent, email, error: confirmError }
+    return { intent, email, step: 'confirm-email', error: confirmError }
+  }
+  try {
+    await completeMfaSetup(client, email)
+  } catch (mfaError) {
+    return { intent, email, step: 'mfa-setup', error: mfaError }
   }
 
   const { data: membership, error: membershipError } = await client
@@ -128,7 +135,7 @@ describe(`bulk signup: ${USER_COUNT} randomized users`, () => {
       const errors = results.filter((r) => r.error)
       expect(
         errors,
-        JSON.stringify(errors.map((e) => ({ email: e.email, message: e.error?.message }))),
+        JSON.stringify(errors.map((e) => ({ email: e.email, step: e.step, message: e.error?.message, status: e.error?.status, code: e.error?.code }))),
       ).toHaveLength(0)
 
       const readers = results.filter((r) => r.intent === 'reader')
