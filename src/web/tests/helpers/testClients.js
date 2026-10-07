@@ -1,5 +1,6 @@
 import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
+import { totp } from './totp.js'
 
 config({ path: '.env.test.local' })
 
@@ -73,11 +74,44 @@ async function findConfirmationTokenHash(email, { retries = 20, delayMs = 250 } 
 // by verifying the token_hash from that user's real confirmation
 // email, and returns the resulting { user, session } -- the session
 // signUp() itself no longer provides directly.
-export async function confirmSignup(client, email) {
+//
+// Two-factor is required for every account (20261006100000_require_mfa
+// .sql) -- the database refuses a session that hasn't completed it -- so
+// by default this also does what a new user's first visit does: adds an
+// authenticator and enters its first code, leaving `client` fully
+// logged in. Pass { mfa: false } to stop at the password-only step.
+const totpSecrets = new Map()
+
+export async function confirmSignup(client, email, { mfa = true } = {}) {
   const tokenHash = await findConfirmationTokenHash(email)
   const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: 'signup' })
   if (error) throw error
-  return data
+  if (!mfa) return data
+
+  const { data: factor, error: enrollError } = await client.auth.mfa.enroll({ factorType: 'totp' })
+  if (enrollError) throw enrollError
+  totpSecrets.set(email, factor.totp.secret)
+  const { data: verified, error: verifyError } = await client.auth.mfa.challengeAndVerify({
+    factorId: factor.id,
+    code: totp(factor.totp.secret),
+  })
+  if (verifyError) throw verifyError
+  return { user: verified.user, session: verified }
+}
+
+// Logs an existing user (one set up through confirmSignup in this same
+// run) back in the way a real user does: password, then a current code.
+export async function signInWithMfa(client, email, password) {
+  const { error } = await client.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  const secret = totpSecrets.get(email)
+  if (!secret) throw new Error(`No authenticator secret recorded for ${email} -- was it created via confirmSignup?`)
+  const { data: factors } = await client.auth.mfa.listFactors()
+  const { error: verifyError } = await client.auth.mfa.challengeAndVerify({
+    factorId: factors.totp[0].id,
+    code: totp(secret),
+  })
+  if (verifyError) throw verifyError
 }
 
 export async function cleanupTestData(orgIds, userIds) {
