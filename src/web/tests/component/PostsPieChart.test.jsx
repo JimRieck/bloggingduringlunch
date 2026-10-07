@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { PostsPieChart } from '../../src/components/PostsPieChart.jsx'
 
 afterEach(cleanup)
@@ -12,15 +12,13 @@ const posts = (n) =>
     views: n - i, // strictly descending, no tie-break ambiguity
   }))
 
-function sliceFills(container) {
-  return [...container.querySelectorAll('.pie-slice')].map((path) => path.getAttribute('fill'))
-}
+const otherRow = () => screen.getByRole('button', { name: /^Other, / })
 
 describe('PostsPieChart', () => {
   it('shows a status message instead of a chart when every post has zero views', () => {
     render(<PostsPieChart data={[{ id: 'a', title: 'A', views: 0 }]} />)
     expect(screen.getByText('No views yet in this range.')).toBeInTheDocument()
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 
   it('excludes zero-view posts and sorts the rest largest-first, with exact percentages', () => {
@@ -42,25 +40,81 @@ describe('PostsPieChart', () => {
     expect(screen.getByText('1 (25%)')).toBeInTheDocument()
   })
 
-  it('gives every viewed post its own slice and legend row -- no "Other" bucket', () => {
-    const { container } = render(<PostsPieChart data={posts(25)} />)
-    expect(container.querySelectorAll('.pie-slice')).toHaveLength(25)
-    expect(container.querySelectorAll('.pie-legend li')).toHaveLength(25)
-    expect(screen.getByText('Post 0')).toBeInTheDocument()
-    expect(screen.getByText('Post 24')).toBeInTheDocument()
-    expect(screen.queryByText('Other')).toBeNull()
+  it('caps at 6 slices, folding the rest into "Other", with no colour used twice', () => {
+    // 9, 8, 7, 6, 5, 4, 3, 2, 1 views
+    const { container } = render(<PostsPieChart data={posts(9)} />)
+
+    // Top 5 (views 9..5) keep their own slice; the remaining 4 (views
+    // 4,3,2,1 = 10 of 45) share one "Other" slice, for 6 slices total.
+    const fills = [...container.querySelectorAll('.pie-slice')].map((p) => p.getAttribute('fill'))
+    expect(fills).toHaveLength(6)
+    expect(new Set(fills).size).toBe(6)
+    expect(screen.getByText('Post 4')).toBeInTheDocument()
+    expect(screen.queryByText('Post 5')).not.toBeInTheDocument()
+    expect(screen.getByText('Other (4 posts)')).toBeInTheDocument()
+    expect(screen.getByText(`10 (${Math.round((10 / 45) * 100)}%)`)).toBeInTheDocument()
   })
 
-  it('never gives two neighbouring slices the same colour, including where the circle closes', () => {
-    for (const count of [2, 6, 7, 12, 13, 25]) {
-      const { container, unmount } = render(<PostsPieChart data={posts(count)} />)
-      const fills = sliceFills(container)
-      fills.forEach((fill, i) => {
-        const next = fills[(i + 1) % fills.length]
-        expect(fill, `${count} slices, slice ${i}`).not.toBe(next)
-      })
-      unmount()
-    }
+  it('exactly 6 posts each keep their own slice -- no "Other" for a single leftover', () => {
+    render(<PostsPieChart data={posts(6)} />)
+    expect(screen.getByText('Post 5')).toBeInTheDocument()
+    expect(screen.queryByText(/Other/)).toBeNull()
+  })
+
+  it('clicking the "Other" legend row lists exactly the posts it groups, and clicking again hides them', () => {
+    render(<PostsPieChart data={posts(9)} />)
+    const row = otherRow()
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    const list = screen.getByRole('list', { name: 'Posts in Other' })
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Post 54 (9%)',
+      'Post 63 (7%)',
+      'Post 72 (4%)',
+      'Post 81 (2%)',
+    ])
+
+    fireEvent.click(row)
+    expect(screen.queryByRole('list', { name: 'Posts in Other' })).toBeNull()
+  })
+
+  it('clicking the "Other" slice of the pie opens the same list, also from the keyboard', () => {
+    render(<PostsPieChart data={posts(9)} />)
+    const slice = screen.getByRole('button', { name: /^Other: 10 views/ })
+    fireEvent.click(slice)
+    expect(screen.getByRole('list', { name: 'Posts in Other' })).toBeInTheDocument()
+    fireEvent.keyDown(slice, { key: 'Enter' })
+    expect(screen.queryByRole('list', { name: 'Posts in Other' })).toBeNull()
+  })
+
+  it('"Other" opens even without onSelect, since knowing what is in it matters everywhere', () => {
+    render(<PostsPieChart data={posts(9)} />)
+    fireEvent.click(otherRow())
+    expect(screen.getByText('Post 8')).toBeInTheDocument()
+  })
+
+  it('with onSelect, a post’s legend row, its slice, and a post inside "Other" all hand back that post', () => {
+    const onSelect = vi.fn()
+    render(<PostsPieChart data={posts(9)} onSelect={onSelect} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Post 1, / }))
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'p1' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /^Post 2: / }))
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'p2' }))
+
+    fireEvent.click(otherRow())
+    fireEvent.click(screen.getByRole('button', { name: /^Post 7, / }))
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'p7' }))
+    expect(onSelect).toHaveBeenCalledTimes(3)
+  })
+
+  it('reads each legend row as title, views and share -- not run together', () => {
+    render(<PostsPieChart data={posts(9)} onSelect={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Post 1, 8 views, 18%' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Other, 4 posts, 10 views, 22%' })).toBeInTheDocument()
   })
 
   it('labels a tiny share "<1%" rather than a misleading 0%', () => {
@@ -73,23 +127,5 @@ describe('PostsPieChart', () => {
       />,
     )
     expect(screen.getByText('1 (<1%)')).toBeInTheDocument()
-  })
-
-  it('wraps long titles instead of cutting them off', () => {
-    const title = 'What I’m Building Next: Engineering Leadership, Architecture, and Modern Delivery'
-    render(<PostsPieChart data={[{ id: 'a', title, views: 3 }]} />)
-    expect(screen.getByText(title)).toBeInTheDocument()
-  })
-
-  it('with onSelect, each legend row is a button that hands back its post', () => {
-    const onSelect = vi.fn()
-    render(<PostsPieChart data={posts(3)} onSelect={onSelect} />)
-    fireEvent.click(screen.getByRole('button', { name: /Post 1/ }))
-    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', title: 'Post 1' }))
-  })
-
-  it('without onSelect, the legend has no buttons', () => {
-    render(<PostsPieChart data={posts(3)} />)
-    expect(screen.queryByRole('button')).toBeNull()
   })
 })

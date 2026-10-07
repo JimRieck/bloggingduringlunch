@@ -173,7 +173,7 @@ export function MyStats({ posts }) {
           {visitedPosts.length > 0 && (
             <p className="post-views-note">
               {visitedPosts.length} post{visitedPosts.length === 1 ? '' : 's'} viewed. Select one to see its views day
-              by day.
+              by day{visitedPosts.length > 6 ? ', or click “Other” to list the posts it groups together' : ''}.
               {unviewedCount > 0 &&
                 ` ${unviewedCount} other published post${unviewedCount === 1 ? '' : 's'} had no views in this range.`}
             </p>

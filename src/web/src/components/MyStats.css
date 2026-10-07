@@ -169,6 +169,29 @@
   }
 }
 
+.pie-slice-clickable {
+  cursor: pointer;
+}
+
+.pie-other-caret {
+  display: inline-block;
+  width: 1em;
+  color: var(--text);
+}
+
+/* The posts grouped into "Other", listed under its legend row. */
+.pie-other-list {
+  list-style: none;
+  margin: 2px 0 4px;
+  padding: 0 0 0 22px;
+  border-left: 2px solid var(--border);
+  margin-left: 11px;
+
+  .pie-legend-row {
+    font-size: 13px;
+  }
+}
+
 .pie-slice-hover {
   opacity: 0.8;
 }
