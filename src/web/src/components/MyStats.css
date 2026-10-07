@@ -217,3 +217,107 @@
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* Full post-by-post list under the pie chart (My stats) and the site
+   traffic chart (admin). Three narrow columns, title wrapping, so it
+   fits a phone without sideways scrolling. */
+.post-views {
+  margin-top: 24px;
+}
+
+.post-views-heading {
+  margin: 0 0 8px;
+  font-size: 16px;
+  text-align: left;
+  color: var(--text-h);
+}
+
+.post-views-hint,
+.post-views-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.post-views-note {
+  margin-top: 8px;
+}
+
+.post-views-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th {
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .post-views-number {
+    text-align: right;
+    white-space: nowrap;
+    width: 1%;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.post-views-title {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 8px 0;
+  font: inherit;
+  text-align: left;
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}
+
+.post-views-name {
+  display: block;
+}
+
+button.post-views-title,
+a.post-views-title {
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+
+  .post-views-name {
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 3px;
+  }
+
+  &:hover .post-views-name {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.post-views-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.site-stats-back {
+  margin: 0 0 12px;
+}
