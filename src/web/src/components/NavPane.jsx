@@ -186,6 +186,12 @@ export function NavPane({
                 </span>
                 {showLabels && <span>Website Stats</span>}
               </a>
+              <a href="/admin/announcements" title="Announcements">
+                <span className="nav-icon" aria-hidden="true">
+                  📬
+                </span>
+                {showLabels && <span>Announcements</span>}
+              </a>
               <a href="/directory" target="_blank" rel="noopener noreferrer" title="Open user directory in a new tab">
                 <span className="nav-icon" aria-hidden="true">
                   👥

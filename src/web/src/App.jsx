@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { AdminPanel } from './components/AdminPanel.jsx'
+import { AnnouncementsAdmin } from './components/AnnouncementsAdmin.jsx'
 import { AuthPanel } from './components/AuthPanel.jsx'
 import { SetNewPasswordForm } from './components/SetNewPasswordForm.jsx'
 import { BulkAutoTag } from './components/BulkAutoTag.jsx'
@@ -187,6 +188,23 @@ function App() {
       )
     } else {
       content = <AdminPanel session={session} />
+    }
+  } else if (pathname === '/admin/announcements') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to access site admin.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else if (!isSiteAdmin) {
+      content = (
+        <div id="directory-gate">
+          <p>You don&rsquo;t have access to this page.</p>
+        </div>
+      )
+    } else {
+      content = <AnnouncementsAdmin session={session} />
     }
   } else if (pathname === '/social') {
     if (!session) {

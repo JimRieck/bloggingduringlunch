@@ -1,11 +1,6 @@
 import { useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
-import Underline from '@tiptap/extension-underline'
-import { Callout } from '../lib/CalloutExtension.js'
-import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
+import { postEditorExtensions } from '../lib/postEditorExtensions.js'
 import { serializeToLinkedInText, plainTextToEditorHTML, linkedinTextLength } from '../lib/linkedinTextFormat.js'
 import { MAX_MESSAGE_LENGTH } from '../lib/socialPosting.js'
 import { EditorToolbar } from './RichTextEditor.jsx'
@@ -24,7 +19,7 @@ export function LinkedInMessageEditor({ value, onChange, organizationId, userId,
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Underline, Callout, YoutubeEmbed],
+    extensions: postEditorExtensions(),
     content: plainTextToEditorHTML(value),
     editorProps: {
       attributes: ariaLabel ? { 'aria-label': ariaLabel } : {},

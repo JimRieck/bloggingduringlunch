@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
-import Underline from '@tiptap/extension-underline'
 import { supabase } from '../lib/supabaseClient.js'
-import { Callout } from '../lib/CalloutExtension.js'
-import { YoutubeEmbed } from '../lib/YoutubeEmbedExtension.js'
+import { postEditorExtensions } from '../lib/postEditorExtensions.js'
 import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { savePostPreview } from '../lib/postPreview.js'
@@ -41,7 +36,7 @@ export function PostForm({ session, postId, onSaved }) {
   const featureFlags = useFeatureFlags()
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false }), Image, Underline, Callout, YoutubeEmbed],
+    extensions: postEditorExtensions(),
     content: '',
   })
 
