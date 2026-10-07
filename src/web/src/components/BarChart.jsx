@@ -44,9 +44,11 @@ function topRoundedRectPath(x, y, width, height, radius) {
 }
 
 // A single-series bar chart: data.views per data.label, one bar per
-// entry. No legend -- a single series' identity is already named by
+// entry. With `onSelect`, each bar is also a button (click, Enter or
+// Space) that hands back its data entry -- used to drill into a day.
+// No legend -- a single series' identity is already named by
 // the chart's own title/subtitle, per the dataviz skill.
-export function BarChart({ data, ariaLabel }) {
+export function BarChart({ data, ariaLabel, onSelect }) {
   const [hoverIndex, setHoverIndex] = useState(null)
 
   if (data.length === 0) {
@@ -67,7 +69,7 @@ export function BarChart({ data, ariaLabel }) {
 
   return (
     <div className="bar-chart">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={ariaLabel}>
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role={onSelect ? 'group' : 'img'} aria-label={ariaLabel}>
         {yTicks.map((tick) => (
           <g key={tick}>
             <line x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={yFor(tick)} y2={yFor(tick)} className="chart-gridline" />
@@ -97,6 +99,19 @@ export function BarChart({ data, ariaLabel }) {
               onMouseLeave={() => setHoverIndex(null)}
               onFocus={() => setHoverIndex(i)}
               onBlur={() => setHoverIndex(null)}
+              onClick={onSelect ? () => onSelect(d) : undefined}
+              onKeyDown={
+                onSelect
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelect(d)
+                      }
+                    }
+                  : undefined
+              }
+              role={onSelect ? 'button' : undefined}
+              aria-label={onSelect ? `${d.label}: ${d.views} view${d.views === 1 ? '' : 's'}` : undefined}
             >
               <title>
                 {d.label}: {d.views} view{d.views === 1 ? '' : 's'}

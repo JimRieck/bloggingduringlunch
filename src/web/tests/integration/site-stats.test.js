@@ -44,6 +44,7 @@ describe('site stats RPCs: site_views_by_day / site_views_by_author', () => {
 
   let adminAuthClient
   let authorId
+  let postId
   let strangerClient
 
   beforeAll(async () => {
@@ -73,6 +74,8 @@ describe('site stats RPCs: site_views_by_day / site_views_by_author', () => {
       })
       .select('id')
       .single()
+
+    postId = post.id
 
     // Backdated via the service-role client -- a real (anon/reader)
     // insert always stamps `now()`, and these assertions need known,
@@ -130,6 +133,29 @@ describe('site stats RPCs: site_views_by_day / site_views_by_author', () => {
     expect(data[0].display_name).toBeTruthy()
   })
 
+  it('site_views_by_post lists each viewed post with its title, blog and author, inclusive of both end dates', async () => {
+    const { data, error } = await adminAuthClient.rpc('site_views_by_post', { start_date: day1, end_date: day2 })
+    expect(error).toBeNull()
+    const row = data.find((r) => r.post_id === postId)
+    expect(row).toMatchObject({
+      title: 'Stats Test Post ' + runId,
+      blog_name: 'Stats Org ' + runId,
+      views: 3,
+    })
+    expect(row.post_slug).toBeTruthy()
+    expect(row.blog_slug).toBeTruthy()
+    expect(row.author_name).toBeTruthy()
+
+    const { data: oneDay } = await adminAuthClient.rpc('site_views_by_post', { start_date: day2, end_date: day2 })
+    expect(oneDay.find((r) => r.post_id === postId)?.views).toBe(1)
+  })
+
+  it('site_views_by_post lists the most-viewed post first', async () => {
+    const { data } = await adminAuthClient.rpc('site_views_by_post', { start_date: day1, end_date: day2 })
+    const views = data.map((r) => r.views)
+    expect(views).toEqual([...views].sort((a, b) => b - a))
+  })
+
   it("a non-admin, non-member caller's RLS boundary holds through the RPC too", async () => {
     const { data: dayData, error: dayError } = await strangerClient.rpc('site_views_by_day', {
       start_date: day1,
@@ -143,5 +169,12 @@ describe('site stats RPCs: site_views_by_day / site_views_by_author', () => {
     })
     expect(authorError).toBeNull()
     expect(authorData).toEqual([])
+
+    const { data: postData, error: postError } = await strangerClient.rpc('site_views_by_post', {
+      start_date: day1,
+      end_date: day2,
+    })
+    expect(postError).toBeNull()
+    expect(postData).toEqual([])
   })
 })

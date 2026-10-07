@@ -7,9 +7,11 @@
 // uncaught (wrong value rendered, empty state not shown, etc).
 // BarChart.jsx is a good first candidate since it's presentational
 // and deterministic from its props, no mocking required.
-import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { BarChart } from '../../src/components/BarChart.jsx'
+
+afterEach(cleanup)
 
 describe('BarChart', () => {
   it('shows the empty-state message instead of a chart when there is no data', () => {
@@ -59,5 +61,34 @@ describe('BarChart', () => {
     expect(screen.getByText('Day 19')).toBeInTheDocument()
     expect(screen.queryByText('Day 1')).not.toBeInTheDocument()
     expect(screen.queryByText('Day 18')).not.toBeInTheDocument()
+  })
+})
+
+describe('BarChart with onSelect (drill-down)', () => {
+  const data = [
+    { id: '2026-10-01', label: 'Oct 1', views: 4 },
+    { id: '2026-10-02', label: 'Oct 2', views: 0 },
+  ]
+
+  it('makes each bar a button that hands back its data entry on click', () => {
+    const onSelect = vi.fn()
+    render(<BarChart data={data} ariaLabel="Views per day" onSelect={onSelect} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Oct 1: 4 views' }))
+    expect(onSelect).toHaveBeenCalledWith(data[0])
+  })
+
+  it('also works from the keyboard with Enter or Space', () => {
+    const onSelect = vi.fn()
+    render(<BarChart data={data} ariaLabel="Views per day" onSelect={onSelect} />)
+    const bar = screen.getByRole('button', { name: 'Oct 2: 0 views' })
+    fireEvent.keyDown(bar, { key: 'Enter' })
+    fireEvent.keyDown(bar, { key: ' ' })
+    expect(onSelect).toHaveBeenCalledTimes(2)
+  })
+
+  it('without onSelect, bars are not buttons and the chart stays a plain image', () => {
+    render(<BarChart data={data} ariaLabel="Views per day" />)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByRole('img', { name: 'Views per day' })).toBeInTheDocument()
   })
 })
