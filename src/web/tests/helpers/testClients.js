@@ -87,7 +87,12 @@ export async function confirmSignup(client, email, { mfa = true } = {}) {
   const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: 'signup' })
   if (error) throw error
   if (!mfa) return data
+  return completeMfaSetup(client, email)
+}
 
+// The second half of confirmSignup on its own: adds an authenticator to
+// the logged-in user on `client` and enters its first code.
+export async function completeMfaSetup(client, email) {
   const { data: factor, error: enrollError } = await client.auth.mfa.enroll({ factorType: 'totp' })
   if (enrollError) throw enrollError
   totpSecrets.set(email, factor.totp.secret)
