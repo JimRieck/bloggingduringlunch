@@ -12,6 +12,8 @@
 // missing env vars) just serves the normal, unmodified index.html rather
 // than breaking the page for a real visitor.
 
+import { classifyBot } from '../src/lib/botUserAgents.js'
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -39,11 +41,42 @@ function sendHtml(res, html) {
   res.status(200).send(html)
 }
 
+// Crawlers never run the page's JavaScript, which is what records a
+// reader's view -- this is the one place they can be seen. Recorded
+// separately from readers (bot_visits, via record_bot_visit), never as a
+// view. Best-effort: a failure is logged, not shown to anyone.
+async function recordBotVisit(supabaseUrl, headers, { orgSlug, postSlug, bot, userAgent }) {
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/record_bot_visit`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_org_slug: orgSlug,
+        p_post_slug: postSlug,
+        p_bot_name: bot.name,
+        p_bot_category: bot.category,
+        p_user_agent: userAgent.slice(0, 400),
+      }),
+    })
+    if (!res.ok) console.error('og: record_bot_visit failed', res.status, await res.text().catch(() => ''))
+  } catch (err) {
+    console.error('og: record_bot_visit failed', err)
+  }
+}
+
 export default async function handler(req, res) {
   const html = await fetchIndexHtml(req).catch(() => null)
   if (html === null) {
     res.status(500).end('Error loading page')
     return
+  }
+
+  // Started alongside the post lookup, and waited for before answering
+  // (a serverless function can be frozen as soon as it responds).
+  let botRecording = null
+  const send = async (body) => {
+    await botRecording
+    sendHtml(res, body)
   }
 
   try {
@@ -58,13 +91,17 @@ export default async function handler(req, res) {
 
     const headers = { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` }
 
+    const userAgent = String(req.headers['user-agent'] ?? '')
+    const bot = classifyBot(userAgent)
+    if (bot) botRecording = recordBotVisit(SUPABASE_URL, headers, { orgSlug, postSlug, bot, userAgent })
+
     const orgRes = await fetch(
       `${SUPABASE_URL}/rest/v1/organizations_public?select=id,name&slug=eq.${encodeURIComponent(orgSlug)}`,
       { headers },
     )
     const [org] = await orgRes.json()
     if (!org) {
-      sendHtml(res, html)
+      await send(html)
       return
     }
 
@@ -74,7 +111,7 @@ export default async function handler(req, res) {
     )
     const [post] = await postRes.json()
     if (!post) {
-      sendHtml(res, html)
+      await send(html)
       return
     }
 
@@ -82,8 +119,14 @@ export default async function handler(req, res) {
     // req.url -- inside the function, req.url reflects the rewrite's
     // internal routing (e.g. "...?org=bdl&post=working-from-home"), not
     // the public-facing path visitors and crawlers actually see.
+    // A utm_source tag (e.g. ?utm_source=linkedin on links the site posts
+    // to LinkedIn) stays on og:url, so a network that sends readers to
+    // the og:url still delivers it and the visit is credited correctly.
     const proto = req.headers['x-forwarded-proto'] || 'https'
-    const pageUrl = `${proto}://${req.headers.host}/blog/${encodeURIComponent(orgSlug)}/${encodeURIComponent(postSlug)}`
+    const utmSource = typeof req.query.utm_source === 'string' ? req.query.utm_source.slice(0, 100) : ''
+    const pageUrl = `${proto}://${req.headers.host}/blog/${encodeURIComponent(orgSlug)}/${encodeURIComponent(postSlug)}${
+      utmSource ? `?utm_source=${encodeURIComponent(utmSource)}` : ''
+    }`
     const title = escapeHtml(post.title)
     const description = escapeHtml(excerpt(post.content))
     const image = post.thumbnail_url ? escapeHtml(post.thumbnail_url) : null
@@ -103,9 +146,9 @@ export default async function handler(req, res) {
       .filter(Boolean)
       .join('\n    ')
 
-    sendHtml(res, html.replace('</head>', `    ${tags}\n  </head>`))
+    await send(html.replace('</head>', `    ${tags}\n  </head>`))
   } catch (err) {
     console.error('og function error:', err)
-    sendHtml(res, html)
+    await send(html)
   }
 }

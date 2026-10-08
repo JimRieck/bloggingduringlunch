@@ -24,7 +24,10 @@ export function PostCard({ post, href, newTab = false, note }) {
         <span>By {post.author?.display_name || 'Unknown author'}</span>
       </div>
       <h2>
-        <a href={href} {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+        {/* noopener without noreferrer: these are this site's own posts,
+            and keeping the referrer is what lets the visit count as
+            "This site" in traffic sources rather than "Direct". */}
+        <a href={href} {...(newTab ? { target: '_blank', rel: 'noopener' } : {})}>
           {post.title}
         </a>
       </h2>

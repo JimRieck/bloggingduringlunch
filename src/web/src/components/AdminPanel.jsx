@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { SUGGESTION_STATUSES, SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import { SiteStats } from './SiteStats.jsx'
 import { AiUsage } from './AiUsage.jsx'
+import { TrafficSources } from './TrafficSources.jsx'
 import { Accordion } from './Accordion.jsx'
 import './UserDirectory.css'
 import './AdminPanel.css'
@@ -163,6 +164,10 @@ export function AdminPanel({ session }) {
 
       <Accordion title="Site traffic" defaultOpen={false}>
         <SiteStats />
+      </Accordion>
+
+      <Accordion title="Traffic sources" defaultOpen={false}>
+        <TrafficSources />
       </Accordion>
 
       <Accordion title="AI usage" defaultOpen={false}>

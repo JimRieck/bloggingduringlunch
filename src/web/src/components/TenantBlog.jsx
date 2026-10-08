@@ -113,7 +113,15 @@ export function TenantBlog({ slug, postSlug, session }) {
           // supabase-js query builders are lazy thenables -- the request
           // never fires unless awaited/then'd, even for a fire-and-forget
           // insert like this one.
-          await supabase.from('post_views').insert({ post_id: onePost.id, referrer: document.referrer || null })
+          // The link's utm_source tag (e.g. ?utm_source=linkedin) is kept
+          // alongside the referrer: it still says where the reader came
+          // from when their app hid the referrer.
+          const utmSource = new URLSearchParams(window.location.search).get('utm_source')
+          await supabase.from('post_views').insert({
+            post_id: onePost.id,
+            referrer: document.referrer || null,
+            utm_source: utmSource ? utmSource.slice(0, 100) : null,
+          })
         }
         return
       }

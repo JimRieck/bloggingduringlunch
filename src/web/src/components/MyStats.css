@@ -368,3 +368,8 @@ a.post-views-title {
 .site-stats-back {
   margin: 0 0 12px;
 }
+
+/* Admin "Traffic sources": the type summary sits above the full list. */
+.traffic-types {
+  margin-bottom: 20px;
+}
