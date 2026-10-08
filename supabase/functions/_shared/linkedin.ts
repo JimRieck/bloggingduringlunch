@@ -75,7 +75,9 @@ export async function runSchedule(admin: SupabaseClient, row: ScheduleRow): Prom
       return finish(false, null, 'post_not_published')
     }
     article = {
-      source: `${APP_URL}/blog/${org.slug}/${post.slug}`,
+      // Tagged so a click from LinkedIn counts as LinkedIn in the admin
+      // traffic sources, even when LinkedIn's app hides the referrer.
+      source: `${APP_URL}/blog/${org.slug}/${post.slug}?utm_source=linkedin`,
       title: post.title,
       description: plainText(post.content ?? '').slice(0, 200),
     }
