@@ -81,3 +81,67 @@
     padding: 10px 20px;
   }
 }
+
+/* A rough stand-in for LinkedIn's link card: thumbnail beside the
+   title, so the author can see what readers will see. */
+.linkedin-card-preview {
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.linkedin-card-caption {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.linkedin-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 520px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+
+.linkedin-card-image {
+  width: 128px;
+  height: 72px;
+  flex-shrink: 0;
+  object-fit: cover;
+  display: block;
+}
+
+.linkedin-card-no-image {
+  background: var(--border);
+}
+
+.linkedin-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 12px 8px 0;
+}
+
+.linkedin-card-title {
+  color: var(--text-h);
+  font-weight: 600;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.linkedin-card-host {
+  font-size: 12px;
+  color: var(--text);
+}
+
+@media (max-width: 768px) {
+  .linkedin-card-image {
+    width: 96px;
+    height: 54px;
+  }
+}

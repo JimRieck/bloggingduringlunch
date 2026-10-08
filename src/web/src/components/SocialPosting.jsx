@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
-import { describeConnectError } from '../lib/socialPosting.js'
+import { describeConnectError, linkedinBlogPostUrl } from '../lib/socialPosting.js'
 import { LinkedInConnection } from './LinkedInConnection.jsx'
 import { SchedulePostForm } from './SchedulePostForm.jsx'
 import { ScheduledPostList } from './ScheduledPostList.jsx'
@@ -41,7 +41,7 @@ export function SocialPosting({ session }) {
             .limit(200),
           supabase
             .from('posts')
-            .select('id, title')
+            .select('id, title, slug, thumbnail_url, organization_id')
             .eq('author_id', session.user.id)
             .eq('status', 'published')
             .order('published_at', { ascending: false }),
@@ -56,10 +56,31 @@ export function SocialPosting({ session }) {
             .maybeSingle(),
         ])
       if (cancelled) return
+
+      // Each post's public address, for the "What to say" template and
+      // the card preview -- the blog's slug comes from
+      // organizations_public (two queries, not an embed, as elsewhere).
+      const orgIds = [...new Set((postRows ?? []).map((p) => p.organization_id))]
+      const { data: orgRows } = orgIds.length
+        ? await supabase.from('organizations_public').select('id, slug').in('id', orgIds)
+        : { data: [] }
+      if (cancelled) return
+      const orgSlugById = new Map((orgRows ?? []).map((o) => [o.id, o.slug]))
+
       setConnection(conn?.[0] ?? null)
       setSchedules(scheduleRows ?? [])
       setRuns(runRows ?? [])
-      setPosts(postRows ?? [])
+      setPosts(
+        (postRows ?? []).map((p) => {
+          const orgSlug = orgSlugById.get(p.organization_id)
+          return {
+            id: p.id,
+            title: p.title,
+            thumbnailUrl: p.thumbnail_url,
+            url: orgSlug ? linkedinBlogPostUrl(window.location.origin, orgSlug, p.slug) : null,
+          }
+        }),
+      )
       setOrganizationId(membership?.organization_id ?? null)
     }
     load()
