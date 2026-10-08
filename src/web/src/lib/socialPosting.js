@@ -70,3 +70,24 @@ export function toLocalInputValue(date) {
   const pad = (n) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
+
+// A blog post's public address as shared on LinkedIn -- tagged so a
+// click counts as LinkedIn in the admin traffic sources even when
+// LinkedIn's app hides where the reader came from.
+export function linkedinBlogPostUrl(origin, orgSlug, postSlug) {
+  return `${origin}/blog/${orgSlug}/${postSlug}?utm_source=linkedin`
+}
+
+// What "What to say" starts as when a blog post is picked: its title
+// and link. LinkedIn also shows the post as a card (picture + title),
+// built from the linked post itself, not from this text.
+export function linkedinPostTemplate(title, url) {
+  return `${title}\n\n${url}`
+}
+
+// LinkedIn only accepts JPG, PNG and GIF pictures; a WebP thumbnail is
+// left off the card. Judged from the address, which is all the browser
+// knows -- the server checks the real file type when posting.
+export function isLinkedInUnsupportedImage(url) {
+  return /\.webp(\?|#|$)/i.test(url ?? '')
+}

@@ -8,7 +8,9 @@ import {
   toLocalInputValue,
 } from '../lib/socialPosting.js'
 import { linkedinTextLength } from '../lib/linkedinTextFormat.js'
+import { linkedinPostTemplate } from '../lib/socialPosting.js'
 import { LinkedInMessageEditor } from './LinkedInMessageEditor.jsx'
+import { LinkedInCardPreview } from './LinkedInCardPreview.jsx'
 import './SchedulePostForm.css'
 
 // Next round 15 minutes -- a sensible default for "later today".
@@ -36,6 +38,31 @@ export function SchedulePostForm({ posts, connected, organizationId, userId, onC
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  // The template last put into the first message, so switching posts
+  // can tell an untouched template (safe to replace) from the author's
+  // own writing (ask first).
+  const [templateText, setTemplateText] = useState('')
+  const linkedPost = posts.find((p) => p.id === postId)
+
+  // Picking a blog post starts "What to say" with its title and link.
+  // Replaces the first message only if it's empty or still the template
+  // from the previous pick; otherwise asks before overwriting.
+  function handlePostChange(e) {
+    const nextId = e.target.value
+    const next = posts.find((p) => p.id === nextId)
+    const nextTemplate = next?.url ? linkedinPostTemplate(next.title, next.url) : ''
+    setPostId(nextId)
+
+    const current = messages[0].text
+    const untouched = !current.trim() || current === templateText
+    if (!untouched) {
+      if (!nextTemplate) return
+      if (!window.confirm('Replace what you’ve written in “What to say” with this post’s title and link?')) return
+    }
+    // A new id remounts that message's editor with the template in it.
+    setMessages((existing) => [{ id: crypto.randomUUID(), text: nextTemplate }, ...existing.slice(1)])
+    setTemplateText(nextTemplate)
+  }
 
   function updateMessage(id, text) {
     setMessages((current) => current.map((m) => (m.id === id ? { ...m, text } : m)))
@@ -125,7 +152,7 @@ export function SchedulePostForm({ posts, connected, organizationId, userId, onC
 
       <label className="field">
         <span>Link a blog post (optional)</span>
-        <select value={postId} onChange={(e) => setPostId(e.target.value)} disabled={busy}>
+        <select value={postId} onChange={handlePostChange} disabled={busy}>
           <option value="">No link — text only</option>
           {posts.map((p) => (
             <option key={p.id} value={p.id}>
@@ -134,6 +161,7 @@ export function SchedulePostForm({ posts, connected, organizationId, userId, onC
           ))}
         </select>
       </label>
+      {linkedPost && <LinkedInCardPreview post={linkedPost} />}
 
       <div className="schedule-messages">
         <span className="schedule-label">What to say</span>
