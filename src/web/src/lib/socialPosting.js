@@ -91,3 +91,20 @@ export function linkedinPostTemplate(title, url) {
 export function isLinkedInUnsupportedImage(url) {
   return /\.webp(\?|#|$)/i.test(url ?? '')
 }
+
+// A scheduled post's times are shown in the time zone it was scheduled
+// in (the author's own, stored on the schedule), with the zone named --
+// the one deliberate exception to the site's Eastern-time rule, since
+// that's the zone the author picked the time in. Explicit fields rather
+// than dateStyle/timeStyle, which can't be combined with timeZoneName.
+export function formatScheduleTime(iso, timezone) {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: timezone,
+    timeZoneName: 'short',
+  })
+}

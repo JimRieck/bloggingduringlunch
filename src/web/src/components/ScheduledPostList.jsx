@@ -4,27 +4,16 @@ import {
   POST_STATUS_LABELS,
   RECURRENCE_LABELS,
   describeScheduleError,
+  formatScheduleTime as formatWhen,
   linkedinPostUrl,
 } from '../lib/socialPosting.js'
+import { ScheduleTimeline } from './ScheduleTimeline.jsx'
 import './ScheduledPostList.css'
-
-function formatWhen(iso, timezone) {
-  // Explicit fields rather than dateStyle/timeStyle -- those can't be
-  // combined with timeZoneName, which is what says *which* zone this is.
-  return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: timezone,
-    timeZoneName: 'short',
-  })
-}
 
 export function ScheduledPostList({ schedules, posts, runs, onChanged }) {
   const [pendingId, setPendingId] = useState(null)
   const [error, setError] = useState('')
+  const [openId, setOpenId] = useState(null)
 
   const titleById = new Map(posts.map((p) => [p.id, p.title]))
   // Runs arrive newest-first, so the first success seen per schedule is
@@ -107,6 +96,14 @@ export function ScheduledPostList({ schedules, posts, runs, onChanged }) {
                     )}
                   </div>
                   {s.last_error && <p className="scheduled-error">{describeScheduleError(s.last_error)}</p>}
+                  <button
+                    type="button"
+                    className="link scheduled-timeline-toggle"
+                    aria-expanded={openId === s.id}
+                    onClick={() => setOpenId(openId === s.id ? null : s.id)}
+                  >
+                    {openId === s.id ? 'Hide schedule & history' : 'Schedule & history'}
+                  </button>
                 </div>
                 <div className="scheduled-actions">
                   {(s.status === 'scheduled' || s.status === 'paused' || s.status === 'failed') && (
@@ -123,6 +120,7 @@ export function ScheduledPostList({ schedules, posts, runs, onChanged }) {
                     Delete
                   </button>
                 </div>
+                {openId === s.id && <ScheduleTimeline schedule={s} />}
               </li>
             )
           })}
