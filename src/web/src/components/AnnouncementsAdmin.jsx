@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { describeDelivery } from '../lib/announcements.js'
+import { formatSiteDateTime } from '../lib/siteTime.js'
 import { AnnouncementForm } from './AnnouncementForm.jsx'
 import { AnnouncementHistory } from './AnnouncementHistory.jsx'
 import { Accordion } from './Accordion.jsx'
@@ -163,7 +164,7 @@ export function AnnouncementsAdmin({ session }) {
                 <div className="announcement-row-main">
                   <div className="announcement-subject">{d.subject || 'Untitled'}</div>
                   <div className="announcement-meta">
-                    {d.id === editingId ? 'Editing now · ' : ''}Last saved {new Date(d.updated_at).toLocaleString()}
+                    {d.id === editingId ? 'Editing now · ' : ''}Last saved {formatSiteDateTime(d.updated_at)}
                   </div>
                 </div>
                 <div className="announcement-row-buttons">

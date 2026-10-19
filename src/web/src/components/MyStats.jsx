@@ -2,32 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { ViewsLineChart } from './ViewsLineChart.jsx'
 import { PostsPieChart } from './PostsPieChart.jsx'
+import { formatDayLabel, siteDateDaysAgo } from '../lib/siteTime.js'
 import './UserDirectory.css'
 import './MyStats.css'
 
-function isoDateString(date) {
-  return date.toISOString().slice(0, 10)
-}
-
+// Eastern calendar dates (lib/siteTime.js), matching how the database
+// splits views into days -- the past 7 days, today included.
 function defaultRange() {
-  const end = new Date()
-  const start = new Date(end)
-  start.setDate(start.getDate() - 6)
-  return { start: isoDateString(start), end: isoDateString(end) }
-}
-
-function formatDay(dateStr) {
-  // Every date in this component (the range boundaries, the `day`
-  // column my_post_views_by_day returns) is a UTC calendar date,
-  // string-built to avoid timezone drift -- this display label has to
-  // stay in UTC too, or it silently shows the wrong day for anyone
-  // not on UTC (confirmed: without this, America/New_York showed Sep
-  // 4/5/7 for views actually grouped under Sep 5/6/8).
-  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
+  return { start: siteDateDaysAgo(6), end: siteDateDaysAgo(0) }
 }
 
 export function MyStats({ posts }) {
@@ -117,7 +99,7 @@ export function MyStats({ posts }) {
   // posts" shows its own per-slice totals via PostsPieChart instead.
   const totalViews = (dayRows ?? []).reduce((sum, r) => sum + r.views, 0)
   const loading = effectiveSelectedPostId === 'all' ? postRows === null : dayRows === null
-  const today = useMemo(() => isoDateString(new Date()), [])
+  const today = useMemo(() => siteDateDaysAgo(0), [])
 
   function handleStartChange(e) {
     const value = e.target.value
@@ -185,7 +167,7 @@ export function MyStats({ posts }) {
             <strong>{totalViews}</strong> view{totalViews === 1 ? '' : 's'} for &ldquo;
             {postTitleById.get(effectiveSelectedPostId)}&rdquo;
           </p>
-          <ViewsLineChart data={byDay} formatLabel={formatDay} />
+          <ViewsLineChart data={byDay} formatLabel={formatDayLabel} />
         </>
       )}
     </section>

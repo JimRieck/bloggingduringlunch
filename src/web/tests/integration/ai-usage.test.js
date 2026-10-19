@@ -92,10 +92,12 @@ describe('AI usage tracking', () => {
         error_code: 'generation_failed',
         created_at: `${day2}T09:00:00Z`,
       },
-      { user_id: lightUser.id, feature: 'titles', succeeded: true, created_at: `${day2}T23:59:59Z` },
-      // Just outside the range on either side -- must not be counted.
-      { user_id: lightUser.id, feature: 'titles', succeeded: true, created_at: '2026-01-31T23:59:59Z' },
-      { user_id: lightUser.id, feature: 'titles', succeeded: true, created_at: '2026-02-03T00:00:00Z' },
+      // Days are Eastern time (EST, UTC-5, in February): 11:59:59pm on
+      // Feb 2 Eastern is already Feb 3 in UTC, and still counts for Feb 2.
+      { user_id: lightUser.id, feature: 'titles', succeeded: true, created_at: '2026-02-03T04:59:59Z' },
+      // Just outside the range on either side, Eastern -- must not be counted.
+      { user_id: lightUser.id, feature: 'titles', succeeded: true, created_at: '2026-02-01T04:59:59Z' },
+      { user_id: lightUser.id, feature: 'titles', succeeded: true, created_at: '2026-02-03T05:00:00Z' },
     ])
     if (error) throw error
   })

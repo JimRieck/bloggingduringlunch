@@ -15,6 +15,19 @@ API request), so when adding code:
   with `signInWithMfa` (`src/web/tests/helpers/testClients.js`); a plain
   `signInWithPassword` client gets `403 mfa_required` from the database.
 
+## Dates and days are Eastern time
+
+The site runs on Eastern time (America/New_York, EST/EDT). Never split
+time into days with UTC:
+
+- In SQL, a day runs from `public.site_day_start(d)` to
+  `public.site_day_start(d + 1)` -- don't compare a timestamp with a plain
+  `date` (that's midnight UTC).
+- In the app, use `src/web/src/lib/siteTime.js` for "today", date ranges
+  (`siteDateDaysAgo`) and showing dates/times (`formatSiteDate`,
+  `formatSiteDateTime`), never `toISOString().slice(0, 10)` or a bare
+  `toLocaleDateString()`.
+
 ## Mobile support is a requirement, not an afterthought
 
 This site must work on real phones — as far back as a Galaxy S21 and the

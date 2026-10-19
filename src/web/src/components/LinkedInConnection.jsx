@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { formatSiteDate } from '../lib/siteTime.js'
 import './SocialPosting.css'
 
 const EXPIRY_WARNING_MS = 7 * 24 * 60 * 60 * 1000
@@ -66,7 +67,7 @@ export function LinkedInConnection({ connection, onChanged }) {
           <p className={`social-connection-expiry${expired || expiringSoon ? ' warn' : ''}`}>
             {expired
               ? 'This connection has expired.'
-              : `Connection valid until ${expiresAt.toLocaleDateString()}${expiringSoon ? ' — reconnect soon.' : '.'}`}
+              : `Connection valid until ${formatSiteDate(expiresAt)}${expiringSoon ? ' — reconnect soon.' : '.'}`}
           </p>
           <div className="social-card-actions">
             {(expired || expiringSoon) && (

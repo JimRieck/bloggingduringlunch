@@ -1,13 +1,6 @@
 import { useEffect, useRef } from 'react'
 import DOMPurify from 'dompurify'
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
+import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
 // One post as readers see it: thumbnail, title, date, category/tag
 // badges and the sanitized body. Shared by the published blog

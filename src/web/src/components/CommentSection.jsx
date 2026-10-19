@@ -2,14 +2,7 @@ import { useEffect, useState } from 'react'
 import { Avatar } from './Avatar.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import './CommentSection.css'
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
+import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
 export function CommentSection({ postId, session }) {
   const [comments, setComments] = useState(null)

@@ -4,30 +4,13 @@ import { getTenantUrl } from '../lib/tenant.js'
 import { BarChart } from './BarChart.jsx'
 import { PostViewsTable } from './PostViewsTable.jsx'
 import './MyStats.css'
+import { formatDayLabel as formatDay, siteDateDaysAgo } from '../lib/siteTime.js'
 import './SiteStats.css'
 
-function isoDateString(date) {
-  return date.toISOString().slice(0, 10)
-}
-
+// Eastern calendar dates (lib/siteTime.js), matching how the database
+// splits views into days -- the past 7 days, today included.
 function defaultRange() {
-  const end = new Date()
-  const start = new Date(end)
-  start.setDate(start.getDate() - 6)
-  return { start: isoDateString(start), end: isoDateString(end) }
-}
-
-// Every date here is a UTC calendar date (the range boundaries, the
-// `day` column site_views_by_day returns) -- this display label has
-// to stay in UTC too, or it silently shows the wrong day for anyone
-// not on UTC (see MyStats.jsx, where this exact thing bit the line
-// chart).
-function formatDay(dateStr) {
-  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
+  return { start: siteDateDaysAgo(6), end: siteDateDaysAgo(0) }
 }
 
 // Site-wide traffic for the admin page: a user-picked date range,
@@ -54,7 +37,7 @@ export function SiteStats() {
   const [authorRows, setAuthorRows] = useState(null)
   const [postRows, setPostRows] = useState(null)
   const [error, setError] = useState('')
-  const today = useMemo(() => isoDateString(new Date()), [])
+  const today = useMemo(() => siteDateDaysAgo(0), [])
   const isSingleDay = range.start === range.end
 
   useEffect(() => {

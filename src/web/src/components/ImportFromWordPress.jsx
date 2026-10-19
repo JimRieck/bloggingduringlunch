@@ -4,16 +4,9 @@ import { supabase } from '../lib/supabaseClient.js'
 import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
 import { CircularProgress } from './CircularProgress.jsx'
 import './ImportFromWordPress.css'
+import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
 const PAGE_SIZE = 20
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
 
 function extractImageUrls(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html')

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { describeDelivery } from '../lib/announcements.js'
+import { formatSiteDateTime } from '../lib/siteTime.js'
 
 // Announcements that have gone out, newest first. "View" shows the email
 // exactly as recipients got it, in a sandboxed frame so its own styles
@@ -20,7 +21,7 @@ export function AnnouncementHistory({ announcements, senderNames }) {
             <div className="announcement-meta">
               {a.status === 'sending'
                 ? 'Sending… (if this doesn’t change after a few minutes, the send was interrupted)'
-                : `${new Date(a.sent_at).toLocaleString()} · ${describeDelivery(a)}`}
+                : `${formatSiteDateTime(a.sent_at)} · ${describeDelivery(a)}`}
               {senderNames[a.sent_by] && <> · by {senderNames[a.sent_by]}</>}
             </div>
           </div>
