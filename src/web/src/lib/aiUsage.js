@@ -13,11 +13,3 @@ export const AI_FEATURE_LABELS = {
 export function aiFeatureLabel(feature) {
   return AI_FEATURE_LABELS[feature] ?? feature
 }
-
-// A UTC calendar date `daysBack` days before today, as YYYY-MM-DD --
-// the same UTC-date convention the ai_usage_by_* RPCs filter on.
-export function isoDateDaysAgo(daysBack, now = new Date()) {
-  const date = new Date(now)
-  date.setUTCDate(date.getUTCDate() - daysBack)
-  return date.toISOString().slice(0, 10)
-}

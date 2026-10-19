@@ -3,14 +3,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { getTenantUrl } from '../lib/tenant.js'
 import { MyStats } from './MyStats.jsx'
 import './MyPosts.css'
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
+import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
 // navigator.clipboard requires a secure context and isn't available on
 // every browser/device combination this site runs on -- falling back to

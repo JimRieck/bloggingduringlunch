@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { formatSiteDate } from '../lib/siteTime.js'
 import { SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import './SuggestionBox.css'
 
@@ -87,7 +88,7 @@ export function SuggestionBox({ session }) {
               <p className="suggestion-content">{s.content}</p>
               <div className="suggestion-meta">
                 <span className={`status-badge status-${s.status}`}>{SUGGESTION_STATUS_LABELS[s.status]}</span>
-                <span className="suggestion-date">{new Date(s.created_at).toLocaleDateString()}</span>
+                <span className="suggestion-date">{formatSiteDate(s.created_at)}</span>
               </div>
             </li>
           ))}

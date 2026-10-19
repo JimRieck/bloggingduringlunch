@@ -1,12 +1,5 @@
 import { Avatar } from './Avatar.jsx'
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
+import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
 // The post-card look used everywhere a list of posts is browsed (the
 // main page's recent-posts grid, and search results) -- factored out

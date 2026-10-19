@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { aiFeatureLabel, isoDateDaysAgo } from '../lib/aiUsage.js'
+import { aiFeatureLabel } from '../lib/aiUsage.js'
+import { formatSiteDateTime, siteDateDaysAgo } from '../lib/siteTime.js'
 import './MyStats.css'
 
 // How often each AI feature is being used, and by whom, for the admin
@@ -8,11 +9,11 @@ import './MyStats.css'
 // ai_usage_events; both tables here come from RPCs that aggregate in
 // the database (20261001100000), same as SiteStats.jsx's charts.
 export function AiUsage() {
-  const [range, setRange] = useState(() => ({ start: isoDateDaysAgo(29), end: isoDateDaysAgo(0) }))
+  const [range, setRange] = useState(() => ({ start: siteDateDaysAgo(29), end: siteDateDaysAgo(0) }))
   const [featureRows, setFeatureRows] = useState(null)
   const [userRows, setUserRows] = useState(null)
   const [error, setError] = useState('')
-  const today = useMemo(() => isoDateDaysAgo(0), [])
+  const today = useMemo(() => siteDateDaysAgo(0), [])
 
   useEffect(() => {
     let cancelled = false
@@ -124,7 +125,7 @@ export function AiUsage() {
                     </td>
                     <td>{r.calls}</td>
                     <td>{r.failed}</td>
-                    <td>{new Date(r.last_used_at).toLocaleString()}</td>
+                    <td>{formatSiteDateTime(r.last_used_at)}</td>
                   </tr>
                 ))}
               </tbody>

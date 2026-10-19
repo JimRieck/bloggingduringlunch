@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { isoDateDaysAgo } from '../lib/aiUsage.js'
+import { formatSiteDate, siteDateDaysAgo } from '../lib/siteTime.js'
 import { summarizeSources, SOURCE_TYPES } from '../lib/trafficSources.js'
 import { BOT_CATEGORIES } from '../lib/botUserAgents.js'
 import './MyStats.css'
@@ -16,11 +16,11 @@ function share(views, total) {
 // 20261008100000) and, separately, bots and crawlers (bot_visit_summary)
 // -- which never count as views.
 export function TrafficSources() {
-  const [range, setRange] = useState(() => ({ start: isoDateDaysAgo(29), end: isoDateDaysAgo(0) }))
+  const [range, setRange] = useState(() => ({ start: siteDateDaysAgo(29), end: siteDateDaysAgo(0) }))
   const [sourceRows, setSourceRows] = useState(null)
   const [botRows, setBotRows] = useState(null)
   const [error, setError] = useState('')
-  const today = useMemo(() => isoDateDaysAgo(0), [])
+  const today = useMemo(() => siteDateDaysAgo(0), [])
 
   useEffect(() => {
     let cancelled = false
@@ -162,7 +162,7 @@ export function TrafficSources() {
                         <span className="post-views-name">{b.bot_name}</span>
                         <span className="post-views-detail">
                           {BOT_CATEGORIES[b.bot_category] ?? b.bot_category} · last seen{' '}
-                          {new Date(b.last_seen).toLocaleDateString()}
+                          {formatSiteDate(b.last_seen)}
                         </span>
                       </td>
                       <td className="post-views-number">{b.visits}</td>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { formatSiteDate } from '../lib/siteTime.js'
 import { SUGGESTION_STATUSES, SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import { SiteStats } from './SiteStats.jsx'
 import { AiUsage } from './AiUsage.jsx'
@@ -239,7 +240,7 @@ export function AdminPanel({ session }) {
                       <div className="directory-name">{s.submitter?.display_name || '—'}</div>
                       <div className="directory-email">{s.submitter?.email}</div>
                     </td>
-                    <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                    <td>{formatSiteDate(s.created_at)}</td>
                     <td className="suggestion-cell">{s.content}</td>
                     <td>
                       <select
