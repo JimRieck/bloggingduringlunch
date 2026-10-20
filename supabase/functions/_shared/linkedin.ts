@@ -68,7 +68,7 @@ export async function runSchedule(admin: SupabaseClient, row: ScheduleRow): Prom
   if (row.post_id) {
     const { data: post } = await admin
       .from('posts')
-      .select('title, slug, content, status, thumbnail_url, organizations(slug)')
+      .select('title, slug, description, content, status, thumbnail_url, organizations(slug)')
       .eq('id', row.post_id)
       .maybeSingle()
     const org = Array.isArray(post?.organizations) ? post?.organizations[0] : post?.organizations
@@ -80,7 +80,9 @@ export async function runSchedule(admin: SupabaseClient, row: ScheduleRow): Prom
       // traffic sources, even when LinkedIn's app hides the referrer.
       source: `${APP_URL}/blog/${org.slug}/${post.slug}?utm_source=linkedin`,
       title: post.title,
-      description: plainText(post.content ?? '').slice(0, 200),
+      // The author's own description when there is one; otherwise the
+      // start of the post itself.
+      description: post.description?.trim() || plainText(post.content ?? '').slice(0, 200),
     }
     // The card's picture: LinkedIn doesn't fetch the link itself, so
     // without an uploaded thumbnail the card is title-only.

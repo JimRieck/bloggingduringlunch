@@ -78,11 +78,13 @@ export function linkedinBlogPostUrl(origin, orgSlug, postSlug) {
   return `${origin}/blog/${orgSlug}/${postSlug}?utm_source=linkedin`
 }
 
-// What "What to say" starts as when a blog post is picked: its title
-// and link. LinkedIn also shows the post as a card (picture + title),
-// built from the linked post itself, not from this text.
-export function linkedinPostTemplate(title, url) {
-  return `${title}\n\n${url}`
+// What "What to say" starts as when a blog post is picked: its title,
+// its description (when it has one), and its link. LinkedIn also shows
+// the post as a card (picture + title), built from the linked post
+// itself, not from this text.
+export function linkedinPostTemplate(title, url, description = '') {
+  const summary = description?.trim()
+  return summary ? `${title}\n\n${summary}\n\n${url}` : `${title}\n\n${url}`
 }
 
 // LinkedIn only accepts JPG, PNG and GIF pictures; a WebP thumbnail is

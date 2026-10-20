@@ -41,7 +41,7 @@ export function SocialPosting({ session }) {
             .limit(200),
           supabase
             .from('posts')
-            .select('id, title, slug, thumbnail_url, organization_id')
+            .select('id, title, description, slug, thumbnail_url, organization_id')
             .eq('author_id', session.user.id)
             .eq('status', 'published')
             .order('published_at', { ascending: false }),
@@ -76,6 +76,7 @@ export function SocialPosting({ session }) {
           return {
             id: p.id,
             title: p.title,
+            description: p.description,
             thumbnailUrl: p.thumbnail_url,
             url: orgSlug ? linkedinBlogPostUrl(window.location.origin, orgSlug, p.slug) : null,
           }

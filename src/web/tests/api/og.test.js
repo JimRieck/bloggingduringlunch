@@ -12,13 +12,14 @@ const LINKEDINBOT = 'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient
 let events
 let rpcCalls
 let rpcBehaviour
+let postRow
 
 function fakeFetch() {
   return vi.fn(async (url, init) => {
     if (url.endsWith('/index.html')) return new Response('<html><head></head><body></body></html>')
     if (url.includes('/rest/v1/organizations_public')) return Response.json([{ id: 'org-1', name: 'My Blog' }])
     if (url.includes('/rest/v1/posts')) {
-      return Response.json([{ title: 'Hello world', content: '<p>Hi there</p>', thumbnail_url: null }])
+      return Response.json([postRow])
     }
     if (url.includes('/rest/v1/rpc/record_bot_visit')) {
       rpcCalls.push({ url, body: JSON.parse(init.body), headers: init.headers })
@@ -58,6 +59,7 @@ function response() {
 beforeEach(() => {
   events = []
   rpcCalls = []
+  postRow = { title: 'Hello world', description: null, content: '<p>Hi there</p>', thumbnail_url: null }
   rpcBehaviour = async () => {
     events.push('recorded')
     return new Response(null, { status: 204 })
@@ -130,6 +132,20 @@ describe('og function', () => {
     expect(res.body).toContain(
       '<meta property="og:url" content="https://bloggingduringlunch.com/blog/my-blog/hello-world?utm_source=linkedin" />',
     )
+  })
+
+  it('uses the post’s own description in the preview when it has one', async () => {
+    postRow = { ...postRow, description: 'Why I ship on my lunch break.' }
+    const res = response()
+    await handler(request(CHROME), res)
+    expect(res.body).toContain('<meta property="og:description" content="Why I ship on my lunch break." />')
+    expect(res.body).toContain('<meta name="twitter:description" content="Why I ship on my lunch break." />')
+  })
+
+  it('falls back to the start of the post without a description', async () => {
+    const res = response()
+    await handler(request(CHROME), res)
+    expect(res.body).toContain('<meta property="og:description" content="Hi there" />')
   })
 
   it('leaves og:url clean without a tag', async () => {

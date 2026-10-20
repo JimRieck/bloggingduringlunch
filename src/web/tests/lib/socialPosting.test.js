@@ -17,6 +17,17 @@ describe('linkedinPostTemplate', () => {
   it('is the title, a blank line, then the link', () => {
     expect(linkedinPostTemplate('Hello world', 'https://x.example/a')).toBe('Hello world\n\nhttps://x.example/a')
   })
+
+  it('puts the post’s description between the title and the link', () => {
+    expect(linkedinPostTemplate('Hello world', 'https://x.example/a', 'Why I ship on my lunch break. ')).toBe(
+      'Hello world\n\nWhy I ship on my lunch break.\n\nhttps://x.example/a',
+    )
+  })
+
+  it('leaves out an empty or blank description', () => {
+    expect(linkedinPostTemplate('Hello world', 'https://x.example/a', '   ')).toBe('Hello world\n\nhttps://x.example/a')
+    expect(linkedinPostTemplate('Hello world', 'https://x.example/a', null)).toBe('Hello world\n\nhttps://x.example/a')
+  })
 })
 
 describe('isLinkedInUnsupportedImage', () => {
