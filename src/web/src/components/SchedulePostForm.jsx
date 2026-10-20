@@ -50,7 +50,7 @@ export function SchedulePostForm({ posts, connected, organizationId, userId, onC
   function handlePostChange(e) {
     const nextId = e.target.value
     const next = posts.find((p) => p.id === nextId)
-    const nextTemplate = next?.url ? linkedinPostTemplate(next.title, next.url) : ''
+    const nextTemplate = next?.url ? linkedinPostTemplate(next.title, next.url, next.description) : ''
     setPostId(nextId)
 
     const current = messages[0].text

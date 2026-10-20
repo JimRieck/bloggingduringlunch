@@ -11,11 +11,15 @@ import { GeneratePostModal } from './GeneratePostModal.jsx'
 import { EditorToolbar } from './RichTextEditor.jsx'
 import './PostForm.css'
 
+// Matches the posts.description check in 20261020100000_post_description.sql.
+const DESCRIPTION_MAX = 150
+
 export function PostForm({ session, postId, onSaved }) {
   const [membership, setMembership] = useState(undefined)
   const [post, setPost] = useState(undefined)
   const [loadedPost, setLoadedPost] = useState(null)
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [thumbnailUrl, setThumbnailUrl] = useState(null)
   const [pickerTarget, setPickerTarget] = useState(null)
   const [error, setError] = useState('')
@@ -32,6 +36,7 @@ export function PostForm({ session, postId, onSaved }) {
   const [titleSuggestOpen, setTitleSuggestOpen] = useState(false)
   const [generatePostOpen, setGeneratePostOpen] = useState(false)
   const [generatingImage, setGeneratingImage] = useState(false)
+  const [writingDescription, setWritingDescription] = useState(false)
   const [previewId] = useState(() => postId ?? crypto.randomUUID())
   const featureFlags = useFeatureFlags()
 
@@ -68,7 +73,9 @@ export function PostForm({ session, postId, onSaved }) {
     if (!postId) return
     supabase
       .from('posts')
-      .select('id, title, content, status, author_id, published_at, thumbnail_url, organization_id, organizations(name)')
+      .select(
+        'id, title, description, content, status, author_id, published_at, thumbnail_url, organization_id, organizations(name)',
+      )
       .eq('id', postId)
       .single()
       .then(({ data }) => setPost(data ?? null))
@@ -83,6 +90,7 @@ export function PostForm({ session, postId, onSaved }) {
   if (postId && post && post !== loadedPost) {
     setLoadedPost(post)
     setTitle(post.title)
+    setDescription(post.description ?? '')
     setThumbnailUrl(post.thumbnail_url)
   }
 
@@ -300,6 +308,7 @@ export function PostForm({ session, postId, onSaved }) {
       organization_id: organizationId,
       author_id: postId ? post.author_id : session.user.id,
       title: title.trim(),
+      description: description.trim() || null,
       content: editor.getHTML(),
       status,
       thumbnail_url: thumbnailUrl,
@@ -410,6 +419,41 @@ export function PostForm({ session, postId, onSaved }) {
     setThumbnailUrl(data.url)
   }
 
+  // Same direct-apply shape as handleGenerateImage. Asks first if it
+  // would replace a description the author already wrote. Each press is
+  // recorded as AI usage by the function itself (shown on /admin).
+  async function handleWriteDescription() {
+    if (!editor || editor.isEmpty) return
+    if (description.trim() && !window.confirm('Replace your description with one written by AI?')) {
+      return
+    }
+    setError('')
+    setWritingDescription(true)
+
+    const { data, error: describeError } = await supabase.functions.invoke('suggest-post-description', {
+      body: { title: title.trim(), content: editor.getText() },
+    })
+    setWritingDescription(false)
+
+    if (describeError || data?.error) {
+      let reason = data?.error
+      if (!reason && describeError?.context) {
+        try {
+          reason = (await describeError.context.json())?.error
+        } catch {
+          // context wasn't JSON, or already consumed -- fall through
+        }
+      }
+      setError(
+        reason === 'not_configured'
+          ? 'Writing descriptions with AI isn’t configured yet.'
+          : 'Couldn’t write a description. Try again.',
+      )
+      return
+    }
+    setDescription(data.description.slice(0, DESCRIPTION_MAX))
+  }
+
   // Confirms before clobbering existing work -- the modal itself just
   // reports the generated HTML back up, since only this component knows
   // whether the body already has content worth protecting.
@@ -503,6 +547,38 @@ export function PostForm({ session, postId, onSaved }) {
             </button>
           )}
         </div>
+      </div>
+      <div className="field">
+        <label htmlFor="post-description">Description (optional)</label>
+        <div className="description-row">
+          <textarea
+            id="post-description"
+            className="post-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={DESCRIPTION_MAX}
+            rows={3}
+            placeholder="A sentence or two about this post"
+            aria-describedby="post-description-hint"
+          />
+          {featureFlags.ai_description_generation && (
+            <button
+              type="button"
+              className="ai-action-button"
+              onClick={handleWriteDescription}
+              disabled={writingDescription || isBodyEmpty}
+              title={isBodyEmpty ? 'Write something in the body first' : 'Write a description based on the post'}
+            >
+              {writingDescription ? 'Writing…' : '✨ Write with AI'}
+            </button>
+          )}
+        </div>
+        <span id="post-description-hint" className="post-description-hint">
+          <span>Used when you share the post — on LinkedIn and in link previews.</span>
+          <span className="post-description-count">
+            {description.length}/{DESCRIPTION_MAX}
+          </span>
+        </span>
       </div>
       <div className="field">
         <span>Thumbnail (optional)</span>

@@ -106,7 +106,7 @@ export default async function handler(req, res) {
     }
 
     const postRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/posts?select=title,content,thumbnail_url&organization_id=eq.${org.id}&slug=eq.${encodeURIComponent(postSlug)}&status=eq.published`,
+      `${SUPABASE_URL}/rest/v1/posts?select=title,description,content,thumbnail_url&organization_id=eq.${org.id}&slug=eq.${encodeURIComponent(postSlug)}&status=eq.published`,
       { headers },
     )
     const [post] = await postRes.json()
@@ -128,7 +128,9 @@ export default async function handler(req, res) {
       utmSource ? `?utm_source=${encodeURIComponent(utmSource)}` : ''
     }`
     const title = escapeHtml(post.title)
-    const description = escapeHtml(excerpt(post.content))
+    // The author's own description when there is one; otherwise the
+    // start of the post.
+    const description = escapeHtml(post.description?.trim() || excerpt(post.content))
     const image = post.thumbnail_url ? escapeHtml(post.thumbnail_url) : null
 
     const tags = [

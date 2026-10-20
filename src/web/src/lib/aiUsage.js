@@ -8,6 +8,7 @@ export const AI_FEATURE_LABELS = {
   bulk_auto_tag: 'Bulk auto-tag (one call per post)',
   post_draft: 'Generate post draft',
   image: 'Generate image',
+  description: 'Write description',
 }
 
 export function aiFeatureLabel(feature) {

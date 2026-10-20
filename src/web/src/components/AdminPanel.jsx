@@ -20,6 +20,7 @@ const FEATURE_FLAG_LABELS = {
   ai_body_generation: 'AI post draft generation',
   ai_image_generation: 'AI image generation',
   ai_bulk_auto_tag: 'Bulk auto-tag (Auto-tag posts menu)',
+  ai_description_generation: 'AI description writing (post editor)',
   linkedin_posting: 'LinkedIn posting (Social posting menu)',
 }
 

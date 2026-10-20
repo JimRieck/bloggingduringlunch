@@ -25,6 +25,61 @@
   }
 }
 
+/* The description box with its "Write with AI" button beside it, or
+   under it on a phone, where the box needs the full width. */
+.description-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  .post-description {
+    flex: 1;
+    min-width: 0;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Styled like the text inputs (auth.css's .field input rules). */
+.post-description {
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.post-description-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.post-description-count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .ai-action-button {
   align-self: flex-start;
   display: inline-flex;

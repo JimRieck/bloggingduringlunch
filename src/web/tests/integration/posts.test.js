@@ -95,6 +95,21 @@ describe('post lifecycle: create, publish, view, delete', () => {
     postSlug = data.slug
   })
 
+  it('description: saves up to 150 characters, and refuses more', async () => {
+    const description = 'd'.repeat(150)
+    const { data, error } = await ownerClient
+      .from('posts')
+      .update({ description })
+      .eq('id', postId)
+      .select('description')
+      .single()
+    expect(error).toBeNull()
+    expect(data.description).toBe(description)
+
+    const { error: tooLong } = await ownerClient.from('posts').update({ description: 'd'.repeat(151) }).eq('id', postId)
+    expect(tooLong).not.toBeNull()
+  })
+
   it("create: a draft doesn't appear in anonymous/public queries yet", async () => {
     const anonClient = createTestClient()
     const { data } = await anonClient
