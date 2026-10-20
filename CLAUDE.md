@@ -15,6 +15,24 @@ API request), so when adding code:
   with `signInWithMfa` (`src/web/tests/helpers/testClients.js`); a plain
   `signInWithPassword` client gets `403 mfa_required` from the database.
 
+## New tables need explicit grants
+
+Supabase no longer gives new tables or views in `public` any Data API
+access automatically (`20261020120000_explicit_data_api_grants.sql`
+switched it off ahead of Supabase's 2026-10-30 change). A table without
+grants is unreachable through supabase-js — "permission denied", even
+for the Edge Functions' `service_role`. So the migration that creates a
+table or view must also grant exactly what's needed, e.g.:
+
+```sql
+grant select on public.my_table to anon;                                     -- only if readers need it
+grant select, insert, update, delete on public.my_table to authenticated;    -- narrow to what the app uses
+grant select, insert, update, delete on public.my_table to service_role;     -- always, for Edge Functions
+```
+
+RLS still decides which rows each role can touch; grants only open the
+door. Functions are unaffected.
+
 ## Dates and days are Eastern time
 
 The site runs on Eastern time (America/New_York, EST/EDT). Never split
