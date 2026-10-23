@@ -44,7 +44,7 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
   useEffect(() => {
     supabase
       .from('posts')
-      .select('id, title, slug, status, published_at, created_at, thumbnail_url')
+      .select('id, title, slug, status, published_at, created_at, thumbnail_url, post_pending_edits(post_id)')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .then(({ data }) => setPosts(data ?? []))
@@ -107,7 +107,7 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
   }
 
   async function handleDelete(post) {
-    if (!window.confirm(`Delete "${post.title}"? This can’t be undone.`)) return
+    if (!window.confirm(`Delete "${post.title || 'Untitled draft'}"? This can’t be undone.`)) return
     setError('')
     const { error: deleteError, count } = await supabase
       .from('posts')
@@ -156,8 +156,13 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
             )}
             <div>
               <h2>
-                {post.title}
+                {post.title || 'Untitled draft'}
                 <span className={`status-badge status-${post.status}`}>{post.status}</span>
+                {post.status === 'published' && post.post_pending_edits && (
+                  <span className="status-badge status-pending" title="Auto-saved changes that aren’t live yet">
+                    Unpublished changes
+                  </span>
+                )}
               </h2>
               <time dateTime={post.published_at ?? post.created_at}>
                 {formatDate(post.published_at ?? post.created_at)}

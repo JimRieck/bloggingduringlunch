@@ -53,3 +53,13 @@ export function formatSiteDateTime(iso) {
     timeZoneName: 'short',
   })
 }
+
+// Just the time of day, e.g. "10:42 AM" -- for things that happened in
+// the last few minutes, like the editor's "Saved 10:42 AM".
+export function formatSiteTime(iso) {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: SITE_TIME_ZONE,
+  })
+}

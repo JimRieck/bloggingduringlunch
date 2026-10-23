@@ -3,6 +3,7 @@ import {
   formatDayLabel,
   formatSiteDate,
   formatSiteDateTime,
+  formatSiteTime,
   formatSiteLongDate,
   siteDateDaysAgo,
   siteDateString,
@@ -60,5 +61,13 @@ describe('formatting', () => {
     expect(shown).toMatch(/9:05/)
     expect(shown).toMatch(/EDT/)
     expect(formatSiteDateTime('2026-01-15T04:30:00Z')).toMatch(/Jan 14, 2026.*11:30.*EST/)
+  })
+})
+
+describe('formatSiteTime', () => {
+  it('shows the Eastern time of day, whatever the device’s zone', () => {
+    // 01:05 UTC on Oct 20 is 9:05pm Eastern (EDT) on Oct 19.
+    expect(formatSiteTime('2026-10-20T01:05:00Z')).toMatch(/9:05/)
+    expect(formatSiteTime('2026-10-20T01:05:00Z')).toMatch(/PM/i)
   })
 })

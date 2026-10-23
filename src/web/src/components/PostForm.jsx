@@ -1,18 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import { supabase } from '../lib/supabaseClient.js'
 import { postEditorExtensions } from '../lib/postEditorExtensions.js'
 import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { savePostPreview } from '../lib/postPreview.js'
+import { useAutoSave } from '../lib/useAutoSave.js'
 import { ImagePicker } from './ImagePicker.jsx'
 import { TitleSuggestModal } from './TitleSuggestModal.jsx'
 import { GeneratePostModal } from './GeneratePostModal.jsx'
 import { EditorToolbar } from './RichTextEditor.jsx'
+import { AutoSaveStatus } from './AutoSaveStatus.jsx'
 import './PostForm.css'
 
 // Matches the posts.description check in 20261020100000_post_description.sql.
 const DESCRIPTION_MAX = 150
+
+// What auto-save compares and stores. Categories and tags aren't part of
+// it -- they're still saved by Save draft / Publish.
+function editSnapshot(title, description, content, thumbnailUrl) {
+  return { title, description, content, thumbnailUrl }
+}
+
+function storedFields(snapshot) {
+  return {
+    title: snapshot.title.trim(),
+    description: snapshot.description.trim() || null,
+    content: snapshot.content,
+    thumbnail_url: snapshot.thumbnailUrl,
+  }
+}
 
 export function PostForm({ session, postId, onSaved }) {
   const [membership, setMembership] = useState(undefined)
@@ -38,6 +55,17 @@ export function PostForm({ session, postId, onSaved }) {
   const [generatingImage, setGeneratingImage] = useState(false)
   const [writingDescription, setWritingDescription] = useState(false)
   const [previewId] = useState(() => postId ?? crypto.randomUUID())
+  // The post's id once it exists -- a new post gets one on its first
+  // auto-save, and from then on every save updates that row.
+  const [savedPostId, setSavedPostId] = useState(postId ?? null)
+  // A published post's private pending copy (post_pending_edits): null
+  // when there isn't one, undefined until checked.
+  const [pendingEdit, setPendingEdit] = useState(postId ? undefined : null)
+  const [showingPending, setShowingPending] = useState(false)
+  // updated_at of the post row and of its pending copy as this editor
+  // last saw them. Auto-save only writes when they still match, so a save
+  // from another tab or editor is noticed instead of overwritten.
+  const versionRef = useRef({ post: null, pending: null })
   const featureFlags = useFeatureFlags()
 
   const editor = useEditor({
@@ -74,11 +102,17 @@ export function PostForm({ session, postId, onSaved }) {
     supabase
       .from('posts')
       .select(
-        'id, title, description, content, status, author_id, published_at, thumbnail_url, organization_id, organizations(name)',
+        'id, title, description, content, status, author_id, published_at, thumbnail_url, organization_id, updated_at, organizations(name)',
       )
       .eq('id', postId)
       .single()
       .then(({ data }) => setPost(data ?? null))
+    supabase
+      .from('post_pending_edits')
+      .select('title, description, content, thumbnail_url, updated_at')
+      .eq('post_id', postId)
+      .maybeSingle()
+      .then(({ data }) => setPendingEdit(data ?? null))
   }, [postId])
 
   // React's own recommended pattern for "reset/derive some state when
@@ -86,26 +120,143 @@ export function PostForm({ session, postId, onSaved }) {
   // in the React docs) -- adjusting state during render, rather than in
   // a useEffect, re-renders synchronously with no extra commit, and
   // doesn't trip the "don't setState synchronously inside an effect"
-  // warning that doing this in an effect would.
-  if (postId && post && post !== loadedPost) {
+  // warning that doing this in an effect would. Unpublished changes
+  // saved earlier, if any, are what the author was last working on, so
+  // they're what opens.
+  if (postId && post && pendingEdit !== undefined && post !== loadedPost) {
+    const source = pendingEdit ?? post
     setLoadedPost(post)
-    setTitle(post.title)
-    setDescription(post.description ?? '')
-    setThumbnailUrl(post.thumbnail_url)
+    setTitle(source.title)
+    setDescription(source.description ?? '')
+    setThumbnailUrl(source.thumbnail_url)
+    setShowingPending(Boolean(pendingEdit))
   }
+
+  const liveStatus = post?.status ?? 'draft'
+  const organizationId = postId ? post?.organization_id : membership?.organizations?.id
+
+  const autoSave = useAutoSave({
+    enabled: Boolean(editor && organizationId),
+    getSnapshot: () => (editor ? editSnapshot(title, description, editor.getHTML(), thumbnailUrl) : null),
+    save: autoSaveEdits,
+  })
 
   // The one piece that genuinely has to be an effect: editor.commands.
   // setContent is an imperative call into Tiptap's own external editor
   // instance, which can't happen during React's render phase. Runs
   // exactly once, whenever both the editor and the post state adjusted
   // above are ready -- neither changes again afterward, so this doesn't
-  // re-fire on every render.
+  // re-fire on every render. That's also when auto-save learns what's
+  // already stored.
   useEffect(() => {
     if (!editor || !loadedPost) return
-    editor.commands.setContent(loadedPost.content)
+    const source = pendingEdit ?? loadedPost
+    editor.commands.setContent(source.content)
+    versionRef.current = { post: loadedPost.updated_at, pending: pendingEdit?.updated_at ?? null }
+    autoSave.markSaved(editSnapshot(source.title, source.description ?? '', editor.getHTML(), source.thumbnail_url))
+    // pendingEdit is read once, alongside loadedPost; discarding it later
+    // resets the editor itself (handleDiscardPending).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, loadedPost])
 
-  const organizationId = postId ? post?.organization_id : membership?.organizations?.id
+  // A new post starts out empty, and that's what counts as saved.
+  useEffect(() => {
+    if (!editor || postId) return
+    autoSave.markSaved(editSnapshot('', '', editor.getHTML(), null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, postId])
+
+  // Auto-save's save(): a new post becomes a draft row; a draft saves to
+  // its own row; a published post saves to its private pending copy.
+  async function autoSaveEdits(snapshot) {
+    const fields = storedFields(snapshot)
+
+    if (!savedPostId) {
+      if (!fields.title && editor.isEmpty) return 'skipped'
+      const { data, error: insertError } = await supabase
+        .from('posts')
+        .insert({
+          ...fields,
+          organization_id: organizationId,
+          author_id: session.user.id,
+          status: 'draft',
+          published_at: null,
+        })
+        .select('id, updated_at')
+        .single()
+      if (insertError) throw insertError
+      versionRef.current.post = data.updated_at
+      setSavedPostId(data.id)
+      // A reload now reopens this draft rather than a blank new post.
+      window.history.replaceState(null, '', `/posts/edit?id=${data.id}`)
+      return 'saved'
+    }
+
+    if (liveStatus === 'published') {
+      if (!versionRef.current.pending) {
+        const { data, error: insertError } = await supabase
+          .from('post_pending_edits')
+          .insert({ ...fields, post_id: savedPostId })
+          .select('updated_at')
+          .single()
+        // Already there: another tab saved a pending copy first.
+        if (insertError?.code === '23505') return 'conflict'
+        if (insertError) throw insertError
+        versionRef.current.pending = data.updated_at
+        setShowingPending(true)
+        return 'saved'
+      }
+      const { data, error: updateError } = await supabase
+        .from('post_pending_edits')
+        .update(fields)
+        .eq('post_id', savedPostId)
+        .eq('updated_at', versionRef.current.pending)
+        .select('updated_at')
+      if (updateError) throw updateError
+      if (data.length === 0) return 'conflict'
+      versionRef.current.pending = data[0].updated_at
+      return 'saved'
+    }
+
+    const { data, error: updateError } = await supabase
+      .from('posts')
+      .update(fields)
+      .eq('id', savedPostId)
+      .eq('updated_at', versionRef.current.post)
+      .select('updated_at')
+    if (updateError) throw updateError
+    if (data.length === 0) return 'conflict'
+    versionRef.current.post = data[0].updated_at
+    // A draft with leftover pending changes (e.g. unpublished since) now
+    // holds them itself.
+    if (versionRef.current.pending) {
+      await supabase.from('post_pending_edits').delete().eq('post_id', savedPostId)
+      versionRef.current.pending = null
+      setShowingPending(false)
+    }
+    return 'saved'
+  }
+
+  async function handleDiscardPending() {
+    if (!window.confirm('Discard your unpublished changes and go back to the published version?')) return
+    await autoSave.pause()
+    const { error: discardError } = await supabase.from('post_pending_edits').delete().eq('post_id', savedPostId)
+    if (discardError) {
+      autoSave.resume()
+      setError('Couldn’t discard the changes. Try again.')
+      return
+    }
+    setTitle(post.title)
+    setDescription(post.description ?? '')
+    setThumbnailUrl(post.thumbnail_url)
+    editor.commands.setContent(post.content)
+    versionRef.current.pending = null
+    setShowingPending(false)
+    setError('')
+    autoSave.markSaved(editSnapshot(post.title, post.description ?? '', editor.getHTML(), post.thumbnail_url))
+    autoSave.resume()
+  }
+
   const organizationName = postId ? post?.organizations?.name : membership?.organizations?.name
   const postAuthorId = postId ? post?.author_id : session.user.id
   const isAuthor = postAuthorId === session.user.id
@@ -303,6 +454,13 @@ export function PostForm({ session, postId, onSaved }) {
     }
     setError('')
     setSaving(true)
+    // No auto-save while this runs (or after, as the page moves on).
+    await autoSave.pause()
+    const failed = (message) => {
+      setSaving(false)
+      setError(message)
+      autoSave.resume()
+    }
 
     const payload = {
       organization_id: organizationId,
@@ -314,21 +472,21 @@ export function PostForm({ session, postId, onSaved }) {
       thumbnail_url: thumbnailUrl,
       published_at: status === 'published' ? (post?.published_at ?? new Date().toISOString()) : null,
     }
-    if (postId) payload.id = postId
+    if (savedPostId) payload.id = savedPostId
 
     const { data, error: saveError } = await supabase
       .from('posts')
       .upsert(payload)
-      .select('id, slug')
+      .select('id, slug, updated_at')
       .single()
 
     if (saveError) {
-      setSaving(false)
-      setError(saveError.message)
+      failed(saveError.message)
       return
     }
 
-    const savedPostId = data.id
+    const rowId = data.id
+    versionRef.current.post = data.updated_at
 
     // Tag rows aren't created until save (matching WordPress's own
     // behavior) -- resolve each chip against the author's already-loaded
@@ -346,8 +504,7 @@ export function PostForm({ session, postId, onSaved }) {
         .select('id, name')
         .single()
       if (tagError) {
-        setSaving(false)
-        setError(tagError.message)
+        failed(tagError.message)
         return
       }
       setAuthorTags((current) => [...current, newTag])
@@ -356,19 +513,26 @@ export function PostForm({ session, postId, onSaved }) {
 
     // Simplest correct sync: replace the full set rather than diffing --
     // category/tag counts on one post are always small.
-    await supabase.from('post_categories').delete().eq('post_id', savedPostId)
+    await supabase.from('post_categories').delete().eq('post_id', rowId)
     if (selectedCategoryIds.size > 0) {
       await supabase
         .from('post_categories')
-        .insert([...selectedCategoryIds].map((category_id) => ({ post_id: savedPostId, category_id })))
+        .insert([...selectedCategoryIds].map((category_id) => ({ post_id: rowId, category_id })))
     }
 
     if (isAuthor) {
-      await supabase.from('post_tags').delete().eq('post_id', savedPostId)
+      await supabase.from('post_tags').delete().eq('post_id', rowId)
       if (tagIds.length > 0) {
-        await supabase.from('post_tags').insert(tagIds.map((tag_id) => ({ post_id: savedPostId, tag_id })))
+        await supabase.from('post_tags').insert(tagIds.map((tag_id) => ({ post_id: rowId, tag_id })))
       }
     }
+
+    // What's saved now is the post itself, so any pending copy is done
+    // with: it's been published, or saved as the draft.
+    await supabase.from('post_pending_edits').delete().eq('post_id', rowId)
+    versionRef.current.pending = null
+    setShowingPending(false)
+    autoSave.markSaved(editSnapshot(title, description, editor.getHTML(), thumbnailUrl))
 
     setSaving(false)
     setNotice(status === 'published' ? 'Post published.' : 'Draft saved.')
@@ -494,14 +658,15 @@ export function PostForm({ session, postId, onSaved }) {
     window.open(`/posts/preview?id=${previewId}`, `post-preview-${previewId}`)
   }
 
-  // Same "confirm before losing work" bar as handleGeneratedContent --
-  // only prompts when there's actually something to lose, so cancelling
-  // out of a blank form is instant.
+  // Auto-save keeps everything up to the last save, so this only asks
+  // when there are changes since then -- cancelling out of a blank form,
+  // or right after a save, is instant. (A new post that's already been
+  // auto-saved stays in My posts as a draft.)
   function handleCancel() {
-    const hasContent = title.trim() || (editor && !editor.isEmpty)
-    if (hasContent && !window.confirm('Discard this post and leave the editor?')) {
+    if (autoSave.isDirty() && !window.confirm('Leave without saving your latest changes?')) {
       return
     }
+    autoSave.pause()
     window.location.href = '/'
   }
 
@@ -524,8 +689,19 @@ export function PostForm({ session, postId, onSaved }) {
   return (
     <div id="create-post">
       <h2>
-        {postId ? 'Edit post' : 'New post'} — {organizationName}
+        {savedPostId ? 'Edit post' : 'New post'} — {organizationName}
       </h2>
+      {showingPending && liveStatus === 'published' && (
+        <div className="pending-edits-banner" role="note">
+          <p>
+            You&rsquo;re editing unpublished changes. Readers still see the published version until you click
+            Publish.
+          </p>
+          <button type="button" className="secondary" onClick={handleDiscardPending}>
+            Discard changes
+          </button>
+        </div>
+      )}
       <div className="field">
         <span>Title</span>
         <div className="title-row">
@@ -724,6 +900,7 @@ export function PostForm({ session, postId, onSaved }) {
           {notice}
         </p>
       )}
+      <AutoSaveStatus status={autoSave.status} pending={liveStatus === 'published'} />
       <div className="post-form-actions">
         <button type="button" className="secondary" disabled={saving} onClick={handleCancel}>
           Cancel
