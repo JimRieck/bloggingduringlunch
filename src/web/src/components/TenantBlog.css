@@ -194,3 +194,13 @@
   border: 0;
   display: block;
 }
+
+/* A post's description, as a standfirst under its title -- in the blog's
+   list, on the post's own page and in the editor's preview. */
+.post-description-lede {
+  margin: 4px 0 8px;
+  font-family: var(--post-body);
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--text);
+}

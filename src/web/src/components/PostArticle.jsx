@@ -8,8 +8,9 @@ import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 // preview can't drift from the real thing. Styled by TenantBlog.css,
 // inside a #tenant-posts container.
 //
-// `post` is { title, content, published_at, thumbnail_url, categories,
-// tags } (categories/tags as name strings). `titleHref` turns the title
+// `post` is { title, description, content, published_at, thumbnail_url,
+// categories, tags } (categories/tags as name strings; description
+// optional, shown under the title). `titleHref` turns the title
 // into a link; `children` render after the body (ratings, comments).
 export function PostArticle({ post, titleHref, id, children }) {
   const bodyRef = useRef(null)
@@ -42,6 +43,7 @@ export function PostArticle({ post, titleHref, id, children }) {
     <article className="post-summary" id={id}>
       {post.thumbnail_url && <img src={post.thumbnail_url} alt="" className="post-thumbnail" />}
       <h2>{titleHref ? <a href={titleHref}>{post.title}</a> : post.title}</h2>
+      {post.description && <p className="post-description-lede">{post.description}</p>}
       <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
       {(post.categories.length > 0 || post.tags.length > 0) && (
         <div className="post-taxonomy">

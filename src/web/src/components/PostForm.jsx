@@ -611,6 +611,7 @@ export function PostForm({ postId, onSaved }) {
         organizationName,
         post: {
           title: title.trim() || 'Untitled post',
+          description: description.trim() || null,
           content: editor.getHTML(),
           thumbnail_url: thumbnailUrl,
           published_at: post?.published_at ?? new Date().toISOString(),

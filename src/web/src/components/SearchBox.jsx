@@ -15,7 +15,7 @@ const RESULT_LIMIT = 10
 // small.
 const SEARCH_CACHE_LIMIT = 50
 
-const POST_COLUMNS = 'id, title, slug, published_at, thumbnail_url, organization_id, author_id'
+const POST_COLUMNS = 'id, title, description, slug, published_at, thumbnail_url, organization_id, author_id'
 
 // Module-level, not component state, for the same reason as postMeta.js's
 // caches: every post across the whole site is now loaded for the default

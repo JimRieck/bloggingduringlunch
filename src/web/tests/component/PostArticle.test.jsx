@@ -28,6 +28,18 @@ describe('PostArticle', () => {
     expect(screen.getByRole('link', { name: 'Shipping During Lunch' })).toHaveAttribute('href', '/blog/my-org/shipping')
   })
 
+  it('shows the description under the title only when the post has one', () => {
+    const { container, rerender } = render(<PostArticle post={basePost} />)
+    expect(container.querySelector('.post-description-lede')).toBeNull()
+
+    rerender(<PostArticle post={{ ...basePost, description: 'Why I ship on my lunch break.' }} />)
+    const lede = container.querySelector('.post-description-lede')
+    expect(lede).toHaveTextContent('Why I ship on my lunch break.')
+    // Right after the title, before the date.
+    expect(lede.previousElementSibling.tagName).toBe('H2')
+    expect(lede.nextElementSibling.tagName).toBe('TIME')
+  })
+
   it('shows the thumbnail only when the post has one', () => {
     const { container, rerender } = render(<PostArticle post={basePost} />)
     expect(container.querySelector('.post-thumbnail')).toBeNull()
