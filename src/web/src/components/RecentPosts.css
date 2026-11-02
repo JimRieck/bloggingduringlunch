@@ -84,3 +84,12 @@
     margin-left: 8px;
   }
 }
+
+/* The post's own description, under its title. At most 150 characters
+   (posts.description), so it never needs clamping. */
+.post-grid .post-card-description {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+}

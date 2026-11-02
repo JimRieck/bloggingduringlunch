@@ -3,7 +3,9 @@ import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
 // The post-card look used everywhere a list of posts is browsed (the
 // main page's recent-posts grid, and search results) -- factored out
-// once it was needed identically in both places.
+// once it was needed identically in both places. Shows the post's
+// description when it has one; these lists don't load post bodies, so
+// there's no excerpt to fall back to.
 export function PostCard({ post, href, newTab = false, note }) {
   return (
     <article className="post-summary">
@@ -24,6 +26,7 @@ export function PostCard({ post, href, newTab = false, note }) {
           {post.title}
         </a>
       </h2>
+      {post.description && <p className="post-card-description">{post.description}</p>}
       <div className="recent-post-meta">
         <span>{post.organization.name}</span>
         <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>

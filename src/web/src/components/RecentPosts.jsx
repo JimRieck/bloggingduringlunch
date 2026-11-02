@@ -17,7 +17,7 @@ export function RecentPosts() {
       const windowStart = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
       const { data: postRows } = await supabase
         .from('posts')
-        .select('id, title, slug, published_at, thumbnail_url, organization_id, author_id')
+        .select('id, title, description, slug, published_at, thumbnail_url, organization_id, author_id')
         .eq('status', 'published')
         .gte('published_at', windowStart)
         .order('published_at', { ascending: false })

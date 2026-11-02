@@ -109,3 +109,29 @@
   font-size: 13px;
   color: var(--accent);
 }
+
+/* The post's description in the author's own list -- or, when it has
+   none, a quiet nudge to add one (it's what LinkedIn and link previews
+   show). */
+.my-post-description {
+  margin: 2px 0 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+/* Its own line, with a tap area of about 40px on a phone. */
+.my-post-description-missing {
+  display: block;
+  width: fit-content;
+  padding: 10px 0;
+  margin: -6px 0 -4px;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.8;
+
+  &:hover {
+    color: var(--accent);
+    opacity: 1;
+  }
+}

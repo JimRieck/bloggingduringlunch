@@ -76,7 +76,7 @@ export function TenantBlog({ slug, postSlug }) {
       if (postSlug) {
         const { data: onePost } = await supabase
           .from('posts')
-          .select('id, title, slug, content, published_at, thumbnail_url, author_id')
+          .select('id, title, description, slug, content, published_at, thumbnail_url, author_id')
           .eq('organization_id', org.id)
           .eq('slug', postSlug)
           .eq('status', 'published')
@@ -128,7 +128,7 @@ export function TenantBlog({ slug, postSlug }) {
 
       const { data: orgPosts } = await supabase
         .from('posts')
-        .select('id, title, slug, content, published_at, thumbnail_url')
+        .select('id, title, description, slug, content, published_at, thumbnail_url')
         .eq('organization_id', org.id)
         .eq('status', 'published')
         .order('published_at', { ascending: false })

@@ -44,7 +44,7 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
   useEffect(() => {
     supabase
       .from('posts')
-      .select('id, title, slug, status, published_at, created_at, thumbnail_url, post_pending_edits(post_id)')
+      .select('id, title, description, slug, status, published_at, created_at, thumbnail_url, post_pending_edits(post_id)')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .then(({ data }) => setPosts(data ?? []))
@@ -164,6 +164,13 @@ export function MyPosts({ organizationId, organizationName, organizationSlug, vi
                   </span>
                 )}
               </h2>
+              {post.description ? (
+                <p className="my-post-description">{post.description}</p>
+              ) : (
+                <a className="my-post-description-missing" href={`/posts/edit?id=${post.id}`}>
+                  Add a description
+                </a>
+              )}
               <time dateTime={post.published_at ?? post.created_at}>
                 {formatDate(post.published_at ?? post.created_at)}
               </time>
