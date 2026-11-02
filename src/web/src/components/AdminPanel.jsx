@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { useSession } from '../stores/index.js'
+import { useFeatureFlagsStore, useSession } from '../stores/index.js'
+import { useFeatureFlags } from '../lib/featureFlags.js'
 import { formatSiteDate } from '../lib/siteTime.js'
 import { SUGGESTION_STATUSES, SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import { SiteStats } from './SiteStats.jsx'
@@ -32,7 +33,19 @@ export function AdminPanel() {
   const [pendingId, setPendingId] = useState(null)
   const [pendingMfaId, setPendingMfaId] = useState(null)
   const [notice, setNotice] = useState('')
-  const [flags, setFlags] = useState(null)
+  // The same flags the rest of the app reads (stores/featureFlagsStore.js),
+  // as a list for the toggles; null until loaded.
+  const flagValues = useFeatureFlags()
+  const flagsLoaded = useFeatureFlagsStore((s) => s.loaded)
+  const flags = useMemo(
+    () =>
+      flagsLoaded
+        ? Object.keys(flagValues)
+            .sort()
+            .map((key) => ({ key, enabled: flagValues[key] }))
+        : null,
+    [flagValues, flagsLoaded],
+  )
   const [flagsError, setFlagsError] = useState('')
   const [pendingFlagKey, setPendingFlagKey] = useState(null)
   const [suggestions, setSuggestions] = useState(null)
@@ -71,31 +84,21 @@ export function AdminPanel() {
       setSuggestions(suggestionRows.map((s) => ({ ...s, submitter: profileById.get(s.user_id) })))
     }
     loadSuggestions()
-
-    supabase
-      .from('feature_flags')
-      .select('key, enabled')
-      .order('key')
-      .then(({ data }) => setFlags(data ?? []))
   }, [])
 
   // Direct table update, not an Edge Function -- the "Site admins can
   // update feature flags" RLS policy (is_site_admin()) is already the
   // only check this needs, same as any other RLS-protected write in
-  // this app.
+  // this app. Through the flags store, so this tab's nav and buttons
+  // change straight away too.
   async function toggleFlag(flag) {
     setFlagsError('')
     setPendingFlagKey(flag.key)
-    const { error: updateError } = await supabase
-      .from('feature_flags')
-      .update({ enabled: !flag.enabled, updated_at: new Date().toISOString() })
-      .eq('key', flag.key)
+    const { error: updateError } = await useFeatureFlagsStore.getState().setFlag(flag.key, !flag.enabled)
     setPendingFlagKey(null)
     if (updateError) {
       setFlagsError(`Couldn't update ${FEATURE_FLAG_LABELS[flag.key] ?? flag.key}. Try again.`)
-      return
     }
-    setFlags((current) => current.map((f) => (f.key === flag.key ? { ...f, enabled: !f.enabled } : f)))
   }
 
   // Through an Edge Function, not a direct table update like toggleFlag

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import { supabase } from '../lib/supabaseClient.js'
-import { useSession } from '../stores/index.js'
+import { NO_CATEGORIES, useAccountStore, useSession, useTaxonomyStore } from '../stores/index.js'
 import { postEditorExtensions } from '../lib/postEditorExtensions.js'
-import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { savePostPreview } from '../lib/postPreview.js'
 import { useAutoSave } from '../lib/useAutoSave.js'
@@ -34,7 +33,9 @@ function storedFields(snapshot) {
 
 export function PostForm({ postId, onSaved }) {
   const session = useSession()
-  const [membership, setMembership] = useState(undefined)
+  // The blog a new post goes into: undefined while loading, null if this
+  // person can't write in one. (An existing post brings its own blog.)
+  const authorOrg = useAccountStore((s) => s.authorOrg)
   const [post, setPost] = useState(undefined)
   const [loadedPost, setLoadedPost] = useState(null)
   const [title, setTitle] = useState('')
@@ -44,11 +45,10 @@ export function PostForm({ postId, onSaved }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
-  const [categories, setCategories] = useState([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState(new Set())
   const [newCategoryName, setNewCategoryName] = useState('')
   const [addingCategory, setAddingCategory] = useState(false)
-  const [authorTags, setAuthorTags] = useState([])
+  const authorTags = useTaxonomyStore((s) => s.tags)
   const [tagChips, setTagChips] = useState([])
   const [tagInput, setTagInput] = useState('')
   const [suggesting, setSuggesting] = useState(false)
@@ -88,18 +88,6 @@ export function PostForm({ postId, onSaved }) {
   })
 
   useEffect(() => {
-    if (postId) return
-    supabase
-      .from('memberships')
-      .select('role, organizations(id, name)')
-      .eq('user_id', session.user.id)
-      .in('role', ['owner', 'editor'])
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setMembership(data ?? null))
-  }, [session.user.id, postId])
-
-  useEffect(() => {
     if (!postId) return
     supabase
       .from('posts')
@@ -135,7 +123,7 @@ export function PostForm({ postId, onSaved }) {
   }
 
   const liveStatus = post?.status ?? 'draft'
-  const organizationId = postId ? post?.organization_id : membership?.organizations?.id
+  const organizationId = postId ? post?.organization_id : authorOrg?.id
 
   const autoSave = useAutoSave({
     enabled: Boolean(editor && organizationId),
@@ -259,27 +247,17 @@ export function PostForm({ postId, onSaved }) {
     autoSave.resume()
   }
 
-  const organizationName = postId ? post?.organizations?.name : membership?.organizations?.name
+  const organizationName = postId ? post?.organizations?.name : authorOrg?.name
   const postAuthorId = postId ? post?.author_id : session.user.id
   const isAuthor = postAuthorId === session.user.id
+  const categories = useTaxonomyStore((s) => (organizationId && s.categoriesByOrg[organizationId]) || NO_CATEGORIES)
 
   useEffect(() => {
-    if (!organizationId) return
-    supabase
-      .from('categories')
-      .select('id, name')
-      .eq('organization_id', organizationId)
-      .order('name')
-      .then(({ data }) => setCategories(data ?? []))
+    if (organizationId) useTaxonomyStore.getState().loadCategories(organizationId)
   }, [organizationId])
 
   useEffect(() => {
-    supabase
-      .from('tags')
-      .select('id, name')
-      .eq('author_id', session.user.id)
-      .order('name')
-      .then(({ data }) => setAuthorTags(data ?? []))
+    useTaxonomyStore.getState().loadTags(session.user.id)
   }, [session.user.id])
 
   useEffect(() => {
@@ -309,18 +287,13 @@ export function PostForm({ postId, onSaved }) {
     const name = newCategoryName.trim()
     if (!name || !organizationId) return
     setAddingCategory(true)
-    const { data, error: addError } = await supabase
-      .from('categories')
-      .insert({ organization_id: organizationId, name })
-      .select('id, name')
-      .single()
+    const { category, error: addError } = await useTaxonomyStore.getState().addCategory(organizationId, name)
     setAddingCategory(false)
     if (addError) {
       setError(addError.message)
       return
     }
-    setCategories((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)))
-    setSelectedCategoryIds((current) => new Set(current).add(data.id))
+    setSelectedCategoryIds((current) => new Set(current).add(category.id))
     setNewCategoryName('')
   }
 
@@ -336,12 +309,11 @@ export function PostForm({ postId, onSaved }) {
     ) {
       return
     }
-    const { error: deleteError } = await supabase.from('categories').delete().eq('id', category.id)
+    const { error: deleteError } = await useTaxonomyStore.getState().deleteCategory(organizationId, category.id)
     if (deleteError) {
       setError(deleteError.message)
       return
     }
-    setCategories((current) => current.filter((c) => c.id !== category.id))
     setSelectedCategoryIds((current) => {
       const next = new Set(current)
       next.delete(category.id)
@@ -423,9 +395,7 @@ export function PostForm({ postId, onSaved }) {
       return
     }
 
-    const categoriesCopy = [...categories]
-    const newCategoryIds = await resolveCategoryIds(data.categories ?? [], organizationId, categoriesCopy)
-    setCategories(categoriesCopy.sort((a, b) => a.name.localeCompare(b.name)))
+    const newCategoryIds = await useTaxonomyStore.getState().resolveCategoryIds(data.categories ?? [], organizationId)
     setSelectedCategoryIds((current) => new Set([...current, ...newCategoryIds]))
 
     if (isAuthor) {
@@ -492,25 +462,21 @@ export function PostForm({ postId, onSaved }) {
 
     // Tag rows aren't created until save (matching WordPress's own
     // behavior) -- resolve each chip against the author's already-loaded
-    // tags, creating any that don't exist yet.
+    // tags, creating any that don't exist yet. Strict, unlike the AI
+    // suggestions: a tag that can't be created stops the save.
     const tagIds = []
     for (const name of tagChips) {
-      const existing = authorTags.find((t) => t.name.toLowerCase() === name.toLowerCase())
+      const existing = useTaxonomyStore.getState().tags.find((t) => t.name.toLowerCase() === name.toLowerCase())
       if (existing) {
         tagIds.push(existing.id)
         continue
       }
-      const { data: newTag, error: tagError } = await supabase
-        .from('tags')
-        .insert({ author_id: session.user.id, name })
-        .select('id, name')
-        .single()
+      const { tag, error: tagError } = await useTaxonomyStore.getState().createTag(name)
       if (tagError) {
         failed(tagError.message)
         return
       }
-      setAuthorTags((current) => [...current, newTag])
-      tagIds.push(newTag.id)
+      tagIds.push(tag.id)
     }
 
     // Simplest correct sync: replace the full set rather than diffing --
@@ -677,9 +643,9 @@ export function PostForm({ postId, onSaved }) {
     if (post === null) {
       return <p className="post-form-status">That post doesn&rsquo;t exist, or you don&rsquo;t have access to it.</p>
     }
-  } else if (membership === undefined) {
+  } else if (authorOrg === undefined) {
     return <p className="post-form-status">Loading…</p>
-  } else if (membership === null) {
+  } else if (authorOrg === null) {
     return (
       <p className="post-form-status">
         You need to be an author on a blog to create posts. Register as an author, or use an

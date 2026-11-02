@@ -36,7 +36,7 @@ door. Functions are unaffected.
 ## Shared state lives in Zustand stores
 
 State that several screens share — who's signed in, their account and
-blogs, feature flags — lives in `src/web/src/stores/` (Zustand), not in
+blogs, feature flags, the author's tags and blogs' categories — lives in `src/web/src/stores/` (Zustand), not in
 `App.jsx` passed down as props. Everything else (form fields, the
 editor, a page's own data) stays in its component with `useState`.
 
@@ -45,7 +45,11 @@ editor, a page's own data) stays in its component with `useState`.
   a new object/array from a selector (Zustand 5 re-renders forever);
   select fields one at a time, or store the derived value in the state.
 - Call actions from event handlers with
-  `useAccountStore.getState().updateProfile(...)`.
+  `useAccountStore.getState().updateProfile(...)`. Inside a loop of
+  awaits, read state with `getState()` each time — never a value captured
+  before the loop, which goes stale.
+- Which blog the person writes in is `useAccountStore((s) => s.authorOrg)`;
+  don't query `memberships` again for it.
 - Each store is a factory taking the Supabase client
   (`createAccountStore(client)`); `stores/index.js` binds the app's
   client. Test a store with a real signed-in test client

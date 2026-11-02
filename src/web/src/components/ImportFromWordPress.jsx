@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
-import { useSession } from '../stores/index.js'
-import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
+import { useAccountStore, useSession, useTaxonomyStore } from '../stores/index.js'
 import { CircularProgress } from './CircularProgress.jsx'
 import './ImportFromWordPress.css'
 import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
@@ -84,7 +83,9 @@ function normalizeSite(input) {
 
 export function ImportFromWordPress() {
   const session = useSession()
-  const [membership, setMembership] = useState(undefined)
+  // The blog posts are imported into: undefined while loading, null if
+  // this person can't write in one.
+  const authorOrg = useAccountStore((s) => s.authorOrg)
   const [siteInput, setSiteInput] = useState('')
   const [fetchedSite, setFetchedSite] = useState('')
   const [fetching, setFetching] = useState(false)
@@ -99,36 +100,15 @@ export function ImportFromWordPress() {
   const [importError, setImportError] = useState('')
   const [importNotice, setImportNotice] = useState('')
 
-  const [orgCategories, setOrgCategories] = useState([])
-  const [authorTags, setAuthorTags] = useState([])
-
+  // The author's tags and the blog's categories, so names imported from
+  // WordPress resolve to existing ones instead of duplicates.
   useEffect(() => {
-    supabase
-      .from('memberships')
-      .select('role, organizations(id, name)')
-      .eq('user_id', session.user.id)
-      .in('role', ['owner', 'editor'])
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setMembership(data ?? null))
+    useTaxonomyStore.getState().loadTags(session.user.id)
   }, [session.user.id])
 
   useEffect(() => {
-    supabase
-      .from('tags')
-      .select('id, name')
-      .eq('author_id', session.user.id)
-      .then(({ data }) => setAuthorTags(data ?? []))
-  }, [session.user.id])
-
-  useEffect(() => {
-    if (!membership?.organizations?.id) return
-    supabase
-      .from('categories')
-      .select('id, name')
-      .eq('organization_id', membership.organizations.id)
-      .then(({ data }) => setOrgCategories(data ?? []))
-  }, [membership?.organizations?.id])
+    if (authorOrg?.id) useTaxonomyStore.getState().loadCategories(authorOrg.id)
+  }, [authorOrg?.id])
 
   async function fetchPage(site, pageNum, append) {
     setFetching(true)
@@ -195,7 +175,8 @@ export function ImportFromWordPress() {
   // and silently dropping some images. Per-post calls also make a real
   // "N of M" progress readout possible.
   async function handleImport() {
-    const organizationId = membership.organizations.id
+    const organizationId = authorOrg.id
+    const { resolveCategoryIds, resolveTagIds } = useTaxonomyStore.getState()
     const toImport = (posts ?? []).filter((p) => selectedIds.has(p.ID))
     if (toImport.length === 0) return
 
@@ -208,14 +189,8 @@ export function ImportFromWordPress() {
     let failedPostCount = 0
     let skippedImageCount = 0
 
-    // Local, mutable copies -- resolveCategoryIds/resolveTagIds append a
-    // newly-created row to whichever list they're given, so a category
-    // or tag invented for post #1 in this loop is reused (not
-    // recreated) for post #5 if it shows up again, without waiting on a
-    // state update between iterations.
-    const orgCategoriesCopy = [...orgCategories]
-    const authorTagsCopy = [...authorTags]
-
+    // A category or tag created for post #1 is in the store by the time
+    // post #5 asks for it, so it's reused rather than created twice.
     for (const p of toImport) {
       const imageUrls = [
         ...new Set([
@@ -265,7 +240,7 @@ export function ImportFromWordPress() {
         const tagNames = Object.values(p.tags ?? {}).map((t) => t.name)
 
         if (categoryNames.length > 0) {
-          const categoryIds = await resolveCategoryIds(categoryNames, organizationId, orgCategoriesCopy)
+          const categoryIds = await resolveCategoryIds(categoryNames, organizationId)
           if (categoryIds.length > 0) {
             await supabase
               .from('post_categories')
@@ -273,7 +248,7 @@ export function ImportFromWordPress() {
           }
         }
         if (tagNames.length > 0) {
-          const tagIds = await resolveTagIds(tagNames, session.user.id, authorTagsCopy)
+          const tagIds = await resolveTagIds(tagNames)
           if (tagIds.length > 0) {
             await supabase.from('post_tags').insert(tagIds.map((tag_id) => ({ post_id: insertedPost.id, tag_id })))
           }
@@ -282,8 +257,6 @@ export function ImportFromWordPress() {
       setImportProgress((prog) => ({ done: (prog?.done ?? 0) + 1, total: toImport.length }))
     }
 
-    setOrgCategories(orgCategoriesCopy)
-    setAuthorTags(authorTagsCopy)
     setImporting(false)
     setImportProgress(null)
 
@@ -317,16 +290,16 @@ export function ImportFromWordPress() {
     )
   }
 
-  if (membership === undefined) {
+  if (authorOrg === undefined) {
     return <p className="post-form-status">Loading…</p>
   }
-  if (membership === null) {
+  if (authorOrg === null) {
     return <p className="post-form-status">You need to be an owner or editor on a blog to import posts.</p>
   }
 
   return (
     <div id="import-wordpress">
-      <h2>Import from WordPress — {membership.organizations.name}</h2>
+      <h2>Import from WordPress — {authorOrg.name}</h2>
       <p className="import-intro">
         Pull posts in from a WordPress.com-hosted blog and choose exactly which ones to bring
         over. Imported posts land as drafts so you can review them before publishing.
