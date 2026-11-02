@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { describeConnectError, linkedinBlogPostUrl } from '../lib/socialPosting.js'
 import { LinkedInConnection } from './LinkedInConnection.jsx'
@@ -7,7 +8,8 @@ import { SchedulePostForm } from './SchedulePostForm.jsx'
 import { ScheduledPostList } from './ScheduledPostList.jsx'
 import './SocialPosting.css'
 
-export function SocialPosting({ session }) {
+export function SocialPosting() {
+  const session = useSession()
   const featureFlags = useFeatureFlags()
   const [connection, setConnection] = useState(undefined)
   const [schedules, setSchedules] = useState([])

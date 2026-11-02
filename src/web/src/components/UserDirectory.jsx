@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react'
 import { Avatar } from './Avatar.jsx'
 import { AuthPanel } from './AuthPanel.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import './UserDirectory.css'
 
 function formatUserType(type) {
   return type ? type.charAt(0).toUpperCase() + type.slice(1) : '—'
 }
 
-export function UserDirectory({ session }) {
+export function UserDirectory() {
+  const session = useSession()
   const [users, setUsers] = useState(null)
 
   useEffect(() => {

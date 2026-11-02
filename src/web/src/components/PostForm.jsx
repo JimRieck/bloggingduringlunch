@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { postEditorExtensions } from '../lib/postEditorExtensions.js'
 import { resolveCategoryIds } from '../lib/taxonomy.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
@@ -31,7 +32,8 @@ function storedFields(snapshot) {
   }
 }
 
-export function PostForm({ session, postId, onSaved }) {
+export function PostForm({ postId, onSaved }) {
+  const session = useSession()
   const [membership, setMembership] = useState(undefined)
   const [post, setPost] = useState(undefined)
   const [loadedPost, setLoadedPost] = useState(null)

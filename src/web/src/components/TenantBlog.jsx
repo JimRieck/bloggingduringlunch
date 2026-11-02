@@ -50,7 +50,7 @@ async function loadCategoriesAndTags(postIds) {
   return { categoriesByPost, tagsByPost }
 }
 
-export function TenantBlog({ slug, postSlug, session }) {
+export function TenantBlog({ slug, postSlug }) {
   const [status, setStatus] = useState('loading')
   const [organization, setOrganization] = useState(null)
   const [posts, setPosts] = useState([])
@@ -98,11 +98,11 @@ export function TenantBlog({ slug, postSlug, session }) {
         // Don't count the author's own visits -- RLS also enforces this
         // (see 20260908203258_exclude_author_from_post_views.sql), this
         // just skips the doomed request. Deliberately re-checks the
-        // live session here instead of trusting the `session` prop:
-        // App.jsx's own session fetch is async and starts out null on
-        // first paint, so on a fresh page load (as opposed to
-        // client-side nav from an already-logged-in state) the prop
-        // can still be stale by the time this effect runs, which
+        // live session here instead of reading the session store: it's
+        // filled in asynchronously and starts out null on first paint,
+        // so on a fresh page load (as opposed to client-side nav from
+        // an already-logged-in state) it can still be stale by the
+        // time this effect runs, which
         // let a real author's view request through and rely on RLS to
         // reject it rather than skipping it client-side as intended.
         const {
@@ -198,8 +198,8 @@ export function TenantBlog({ slug, postSlug, session }) {
         </header>
         <main id="tenant-posts">
           <PostArticle post={post}>
-            <StarRating postId={post.id} session={session} />
-            <CommentSection postId={post.id} session={session} />
+            <StarRating postId={post.id} />
+            <CommentSection postId={post.id} />
           </PostArticle>
           <a className="link" href={`/blog/${slug}`}>
             ← All posts from {organization.name}

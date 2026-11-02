@@ -33,6 +33,24 @@ grant select, insert, update, delete on public.my_table to service_role;     -- 
 RLS still decides which rows each role can touch; grants only open the
 door. Functions are unaffected.
 
+## Shared state lives in Zustand stores
+
+State that several screens share — who's signed in, their account and
+blogs, feature flags — lives in `src/web/src/stores/` (Zustand), not in
+`App.jsx` passed down as props. Everything else (form fields, the
+editor, a page's own data) stays in its component with `useState`.
+
+- Read with a selector so a component only re-renders for what it uses:
+  `useAccountStore((s) => s.isSiteAdmin)`, `useSession()`. Don't return
+  a new object/array from a selector (Zustand 5 re-renders forever);
+  select fields one at a time, or store the derived value in the state.
+- Call actions from event handlers with
+  `useAccountStore.getState().updateProfile(...)`.
+- Each store is a factory taking the Supabase client
+  (`createAccountStore(client)`); `stores/index.js` binds the app's
+  client. Test a store with a real signed-in test client
+  (`tests/integration/stores.test.js`), not a mock.
+
 ## Dates and days are Eastern time
 
 The site runs on Eastern time (America/New_York, EST/EDT). Never split

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { formatSiteDate } from '../lib/siteTime.js'
 import { SUGGESTION_STATUSES, SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import { SiteStats } from './SiteStats.jsx'
@@ -24,7 +25,8 @@ const FEATURE_FLAG_LABELS = {
   linkedin_posting: 'LinkedIn posting (Social posting menu)',
 }
 
-export function AdminPanel({ session }) {
+export function AdminPanel() {
+  const session = useSession()
   const [users, setUsers] = useState(null)
   const [error, setError] = useState('')
   const [pendingId, setPendingId] = useState(null)

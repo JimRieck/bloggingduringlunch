@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { CircularProgress } from './CircularProgress.jsx'
@@ -40,7 +41,8 @@ async function loadCategoriesAndTags(postIds) {
   return { categoriesByPost, tagsByPost }
 }
 
-export function BulkAutoTag({ session }) {
+export function BulkAutoTag() {
+  const session = useSession()
   const [posts, setPosts] = useState(null)
   const [authorTags, setAuthorTags] = useState([])
   const [categoriesByOrg, setCategoriesByOrg] = useState(new Map())
