@@ -10,7 +10,7 @@
 // with the same name), not just in isolation with guaranteed-unique
 // names.
 import { afterAll, describe, expect, it } from 'vitest'
-import { adminClient, cleanupTestData, completeMfaSetup, confirmSignup, createTestClient } from '../helpers/testClients.js'
+import { adminClient, cleanupTestData, completeMfaSetup, confirmSignup, createTestClient, mfaChallengeRetries } from '../helpers/testClients.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const USER_COUNT = 100
@@ -106,7 +106,7 @@ describe(`bulk signup: ${USER_COUNT} randomized users`, () => {
 
   it(
     `creates ${USER_COUNT} users across reader/author-create/author-join with no errors`,
-    async () => {
+    async ({ annotate }) => {
       const joinableOrgs = []
       const results = []
 
@@ -128,6 +128,17 @@ describe(`bulk signup: ${USER_COUNT} randomized users`, () => {
             joinableOrgs.push({ id: org.id, inviteCode: org.invite_code })
           }
         }
+      }
+
+      // Retries of Supabase Auth's last_challenged_at collision (see
+      // challengeFactor in testClients.js) -- reported, never hidden: in
+      // the test output, and as a notice on the GitHub Actions run.
+      if (mfaChallengeRetries.length) {
+        const report =
+          `MFA challenge retried ${mfaChallengeRetries.length} time(s) after a 500 (supabase/auth#2854): ` +
+          JSON.stringify(mfaChallengeRetries)
+        console.warn(report)
+        await annotate(report, 'notice')
       }
 
       expect(results).toHaveLength(USER_COUNT)
