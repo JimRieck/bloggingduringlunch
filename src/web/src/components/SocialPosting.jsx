@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { useSession } from '../stores/index.js'
+import { useAccountStore, useSession } from '../stores/index.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { describeConnectError, linkedinBlogPostUrl } from '../lib/socialPosting.js'
 import { LinkedInConnection } from './LinkedInConnection.jsx'
@@ -15,7 +15,9 @@ export function SocialPosting() {
   const [schedules, setSchedules] = useState([])
   const [runs, setRuns] = useState([])
   const [posts, setPosts] = useState([])
-  const [organizationId, setOrganizationId] = useState(null)
+  // For LinkedInMessageEditor's own image picker -- images upload into
+  // the author's blog, same as the blog editor's.
+  const organizationId = useAccountStore((s) => s.authorOrg?.id ?? null)
   const [reloadKey, setReloadKey] = useState(0)
   // LinkedIn sends the browser back here with ?linkedin=connected|error.
   const [returned] = useState(() => new URLSearchParams(window.location.search).get('linkedin'))
@@ -29,34 +31,24 @@ export function SocialPosting() {
     if (!featureFlags.linkedin_posting) return
     let cancelled = false
     async function load() {
-      const [{ data: conn }, { data: scheduleRows }, { data: runRows }, { data: postRows }, { data: membership }] =
-        await Promise.all([
-          supabase.rpc('my_linkedin_connection'),
-          supabase
-            .from('scheduled_social_posts')
-            .select('id, post_id, messages, next_run_at, timezone, recurrence, ends_at, status, run_count, last_error')
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('social_post_runs')
-            .select('schedule_id, status, external_id')
-            .order('ran_at', { ascending: false })
-            .limit(200),
-          supabase
-            .from('posts')
-            .select('id, title, description, slug, thumbnail_url, organization_id')
-            .eq('author_id', session.user.id)
-            .eq('status', 'published')
-            .order('published_at', { ascending: false }),
-          // For LinkedInMessageEditor's own image picker -- images
-          // upload into the author's org, same as the blog editor's.
-          supabase
-            .from('memberships')
-            .select('organization_id')
-            .eq('user_id', session.user.id)
-            .in('role', ['owner', 'editor'])
-            .limit(1)
-            .maybeSingle(),
-        ])
+      const [{ data: conn }, { data: scheduleRows }, { data: runRows }, { data: postRows }] = await Promise.all([
+        supabase.rpc('my_linkedin_connection'),
+        supabase
+          .from('scheduled_social_posts')
+          .select('id, post_id, messages, next_run_at, timezone, recurrence, ends_at, status, run_count, last_error')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('social_post_runs')
+          .select('schedule_id, status, external_id')
+          .order('ran_at', { ascending: false })
+          .limit(200),
+        supabase
+          .from('posts')
+          .select('id, title, description, slug, thumbnail_url, organization_id')
+          .eq('author_id', session.user.id)
+          .eq('status', 'published')
+          .order('published_at', { ascending: false }),
+      ])
       if (cancelled) return
 
       // Each post's public address, for the "What to say" template and
@@ -84,7 +76,6 @@ export function SocialPosting() {
           }
         }),
       )
-      setOrganizationId(membership?.organization_id ?? null)
     }
     load()
     return () => {

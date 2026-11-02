@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { useSession } from '../stores/index.js'
-import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
+import { useSession, useTaxonomyStore } from '../stores/index.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
 import { CircularProgress } from './CircularProgress.jsx'
 import './BulkAutoTag.css'
@@ -44,8 +43,6 @@ async function loadCategoriesAndTags(postIds) {
 export function BulkAutoTag() {
   const session = useSession()
   const [posts, setPosts] = useState(null)
-  const [authorTags, setAuthorTags] = useState([])
-  const [categoriesByOrg, setCategoriesByOrg] = useState(new Map())
   const [rowStatus, setRowStatus] = useState({})
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(null)
@@ -66,25 +63,17 @@ export function BulkAutoTag() {
       if (cancelled) return
       const rowsList = rows ?? []
 
-      const [{ categoriesByPost, tagsByPost }, { data: tagRows }] = await Promise.all([
+      // The author's tags, and the categories of every blog they have a
+      // post in, are what the AI picks from first and what new names
+      // resolve against.
+      const taxonomy = useTaxonomyStore.getState()
+      const [{ categoriesByPost, tagsByPost }] = await Promise.all([
         loadCategoriesAndTags(rowsList.map((p) => p.id)),
-        supabase.from('tags').select('id, name').eq('author_id', session.user.id),
+        taxonomy.loadTags(session.user.id),
+        taxonomy.loadCategories([...new Set(rowsList.map((p) => p.organization_id))]),
       ])
       if (cancelled) return
 
-      const orgIds = [...new Set(rowsList.map((p) => p.organization_id))]
-      const { data: categoryRows } = orgIds.length
-        ? await supabase.from('categories').select('id, name, organization_id').in('organization_id', orgIds)
-        : { data: [] }
-      if (cancelled) return
-
-      const byOrg = new Map()
-      for (const c of categoryRows ?? []) {
-        byOrg.set(c.organization_id, [...(byOrg.get(c.organization_id) ?? []), c])
-      }
-
-      setCategoriesByOrg(byOrg)
-      setAuthorTags(tagRows ?? [])
       setPosts(
         rowsList.map((p) => ({
           ...p,
@@ -99,32 +88,29 @@ export function BulkAutoTag() {
     }
   }, [session.user.id])
 
-  // `categoriesByOrgRef`/`authorTagsRef` are passed in and mutated in
-  // place, rather than read from categoriesByOrg/authorTags state --
-  // handleAutoTagAll's loop calls this many times in a row without ever
-  // yielding back to a React render, so a version reading state
-  // directly would see the SAME pre-loop snapshot on every iteration
-  // (setState from iteration 1 doesn't retroactively update the
-  // closure iteration 2 is already running with). That's exactly what
-  // was letting the AI re-suggest and re-create the same category on
-  // every post in a bulk run, piling up literal duplicates in the DB.
+  // Reads the tags and categories from the store at the moment it runs
+  // (useTaxonomyStore.getState()), never from a render's snapshot:
+  // handleAutoTagAll calls this many times in a row without yielding to
+  // a render, and a snapshot taken before the loop is what once let the
+  // AI re-suggest and re-create the same category on every post in a
+  // bulk run, piling up literal duplicates in the DB.
   //
   // Additive only -- never removes a category/tag that's already
   // attached, so this is safe to run without a per-post review step
   // (the "as easy as clicking a button" bulk mode). Returns false on
   // failure so callers can tally it without throwing mid-batch.
-  async function autoTagOne(post, categoriesByOrgRef, authorTagsRef) {
+  async function autoTagOne(post) {
     setRowStatus((s) => ({ ...s, [post.id]: 'working' }))
 
-    if (!categoriesByOrgRef.has(post.organization_id)) categoriesByOrgRef.set(post.organization_id, [])
-    const existingCategories = categoriesByOrgRef.get(post.organization_id)
+    const taxonomy = useTaxonomyStore.getState()
+    const existingCategories = taxonomy.categoriesByOrg[post.organization_id] ?? []
 
     const { data, error: suggestError } = await supabase.functions.invoke('suggest-tags-and-categories', {
       body: {
         title: post.title,
         content: (post.content || '').replace(/<[^>]+>/g, ' '),
         existingCategories: existingCategories.map((c) => c.name),
-        existingTags: authorTagsRef.map((t) => t.name),
+        existingTags: taxonomy.tags.map((t) => t.name),
         source: 'bulk',
       },
     })
@@ -136,15 +122,10 @@ export function BulkAutoTag() {
     const existingCategoryIds = new Set(post.categories.map((c) => c.id))
     const existingTagIds = new Set(post.tags.map((t) => t.id))
 
-    // resolveCategoryIds/resolveTagIds mutate existingCategories/
-    // authorTagsRef in place (appending any newly-created row), so the
-    // caller's ref is what actually accumulates state across the loop.
-    const newCategoryIds = (
-      await resolveCategoryIds(data.categories ?? [], post.organization_id, existingCategories)
-    ).filter((id) => !existingCategoryIds.has(id))
-    const newTagIds = (await resolveTagIds(data.tags ?? [], session.user.id, authorTagsRef)).filter(
-      (id) => !existingTagIds.has(id),
+    const newCategoryIds = (await taxonomy.resolveCategoryIds(data.categories ?? [], post.organization_id)).filter(
+      (id) => !existingCategoryIds.has(id),
     )
+    const newTagIds = (await taxonomy.resolveTagIds(data.tags ?? [])).filter((id) => !existingTagIds.has(id))
 
     if (newCategoryIds.length > 0) {
       await supabase
@@ -155,8 +136,13 @@ export function BulkAutoTag() {
       await supabase.from('post_tags').insert(newTagIds.map((tag_id) => ({ post_id: post.id, tag_id })))
     }
 
-    const addedCategories = existingCategories.filter((c) => newCategoryIds.includes(c.id))
-    const addedTags = authorTagsRef.filter((t) => newTagIds.includes(t.id))
+    // Names for what was just attached, from the lists as they are now
+    // (including anything resolving just created).
+    const now = useTaxonomyStore.getState()
+    const addedCategories = (now.categoriesByOrg[post.organization_id] ?? []).filter((c) =>
+      newCategoryIds.includes(c.id),
+    )
+    const addedTags = now.tags.filter((t) => newTagIds.includes(t.id))
     setPosts((current) =>
       current.map((p) =>
         p.id === post.id
@@ -168,17 +154,9 @@ export function BulkAutoTag() {
     return true
   }
 
-  function cloneCategoriesByOrg() {
-    return new Map([...categoriesByOrg].map(([orgId, rows]) => [orgId, [...rows]]))
-  }
-
   async function handleAutoTagOne(post) {
     setError('')
-    const categoriesByOrgLocal = cloneCategoriesByOrg()
-    const authorTagsLocal = [...authorTags]
-    await autoTagOne(post, categoriesByOrgLocal, authorTagsLocal)
-    setCategoriesByOrg(categoriesByOrgLocal)
-    setAuthorTags(authorTagsLocal)
+    await autoTagOne(post)
   }
 
   async function handleAutoTagAll() {
@@ -187,22 +165,14 @@ export function BulkAutoTag() {
     stopRef.current = false
     setProgress({ done: 0, total: posts.length })
 
-    // Local for the whole run, synced to state only once at the end --
-    // see the comment on autoTagOne for why reading categoriesByOrg/
-    // authorTags state directly inside this loop was the actual bug.
-    const categoriesByOrgLocal = cloneCategoriesByOrg()
-    const authorTagsLocal = [...authorTags]
-
     let failed = 0
     for (const post of posts) {
       if (stopRef.current) break
-      const ok = await autoTagOne(post, categoriesByOrgLocal, authorTagsLocal)
+      const ok = await autoTagOne(post)
       if (!ok) failed += 1
       setProgress((prog) => ({ done: (prog?.done ?? 0) + 1, total: posts.length }))
     }
 
-    setCategoriesByOrg(categoriesByOrgLocal)
-    setAuthorTags(authorTagsLocal)
     setRunning(false)
     setProgress(null)
     if (failed > 0) {

@@ -40,5 +40,22 @@ export function createFeatureFlagsStore(client) {
         })
         .subscribe()
     },
+
+    // /admin's toggles. Updates the store as soon as the database
+    // confirms, so the admin's own tab changes at once rather than when
+    // the Realtime echo arrives (which then just repeats the same value).
+    // RLS lets only site admins update a flag; for anyone else the update
+    // matches no rows, which is reported as an error too.
+    async setFlag(key, enabled) {
+      const { data, error } = await client
+        .from('feature_flags')
+        .update({ enabled, updated_at: new Date().toISOString() })
+        .eq('key', key)
+        .select('key')
+      if (error) return { error }
+      if (!data?.length) return { error: new Error(`Not allowed to change ${key}`) }
+      set((s) => ({ flags: { ...s.flags, [key]: enabled } }))
+      return { error: null }
+    },
   }))
 }

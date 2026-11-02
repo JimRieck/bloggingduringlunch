@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { useSession } from '../stores/index.js'
+import { useAccountStore, useSession } from '../stores/index.js'
 import { describeDelivery } from '../lib/announcements.js'
 import { formatSiteDateTime } from '../lib/siteTime.js'
 import { AnnouncementForm } from './AnnouncementForm.jsx'
@@ -16,7 +16,9 @@ export function AnnouncementsAdmin() {
   const [announcements, setAnnouncements] = useState(null)
   const [senderNames, setSenderNames] = useState({})
   const [recipients, setRecipients] = useState(null)
-  const [organizationId, setOrganizationId] = useState(null)
+  // For the editor's image picker -- images go into the admin's own
+  // blog's library, same as the post editor.
+  const organizationId = useAccountStore((s) => s.authorOrg?.id ?? null)
   // `key` remounts the form; it only changes on New / Edit, not on save.
   const [editing, setEditing] = useState({ key: 'new', announcement: null })
   // The draft being edited -- set on Edit, and when a new one is first saved.
@@ -29,7 +31,7 @@ export function AnnouncementsAdmin() {
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const [{ data: rows, error: loadError }, { data: recipientRows }, { data: membership }] = await Promise.all([
+      const [{ data: rows, error: loadError }, { data: recipientRows }] = await Promise.all([
         supabase
           .from('announcements')
           .select(
@@ -37,15 +39,6 @@ export function AnnouncementsAdmin() {
           )
           .order('updated_at', { ascending: false }),
         supabase.rpc('announcement_recipient_list'),
-        // For the editor's image picker -- images go into the admin's
-        // own blog's library, same as the post editor.
-        supabase
-          .from('memberships')
-          .select('organization_id')
-          .eq('user_id', session.user.id)
-          .in('role', ['owner', 'editor'])
-          .limit(1)
-          .maybeSingle(),
       ])
       if (cancelled) return
       if (loadError) setError('Couldn’t load announcements. Reload to try again.')
@@ -59,13 +52,12 @@ export function AnnouncementsAdmin() {
       setAnnouncements(rows ?? [])
       setSenderNames(Object.fromEntries((profiles ?? []).map((p) => [p.id, p.display_name || p.email])))
       setRecipients(recipientRows ?? [])
-      setOrganizationId(membership?.organization_id ?? null)
     }
     load()
     return () => {
       cancelled = true
     }
-  }, [session.user.id, reloadKey])
+  }, [reloadKey])
 
   function startEditing(announcement) {
     if (dirty && !window.confirm('Discard your unsaved changes?')) return
