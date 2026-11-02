@@ -73,6 +73,32 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
         run: npm test
 
+      # A 500 from Auth says only "Unexpected failure, please check
+      # server logs" -- the reason is in the containers' logs, which
+      # vanish with the runner. On failure, print the error lines here
+      # and keep the full logs as an artifact.
+      - name: Dump Supabase logs on failure
+        if: failure()
+        run: |
+          mkdir -p supabase-logs
+          for c in auth db rest kong; do
+            docker logs supabase_${c}_bloggingduringlunch > supabase-logs/$c.log 2>&1 || true
+          done
+          echo "::group::Auth (GoTrue) 5xx responses and errors"
+          grep -E '"status":5[0-9][0-9]|"level":"(error|fatal|panic)"' supabase-logs/auth.log || true
+          echo "::endgroup::"
+          echo "::group::Postgres FATAL/PANIC, and ERRORs from the auth role"
+          grep -E 'FATAL|PANIC|supabase_auth_admin@.*ERROR' supabase-logs/db.log || true
+          echo "::endgroup::"
+
+      - name: Upload Supabase logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-logs
+          path: supabase-logs/
+          retention-days: 7
+
   # Only runs on an actual push to main (never a PR, never another
   # branch) or a manual dispatch against main, and only after lint+test
   # both pass -- deliberately

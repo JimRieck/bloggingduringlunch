@@ -90,14 +90,45 @@ export async function confirmSignup(client, email, { mfa = true } = {}) {
   return completeMfaSetup(client, email)
 }
 
+// Every retry challengeFactor() has made this run, so a test can report
+// them (bulk-signup.test.js prints the count) instead of hiding them.
+export const mfaChallengeRetries = []
+
+// Starts an MFA challenge, retrying only a 500 from the challenge call
+// itself. Supabase Auth's own schema has a UNIQUE constraint on
+// auth.mfa_factors.last_challenged_at -- across *all* users' factors --
+// so when two users' challenges are stamped with the same microsecond,
+// the second gets 500 "Unexpected failure" (its log: duplicate key value
+// violates unique constraint "mfa_factors_last_challenged_at_key").
+// Upstream bug: https://github.com/supabase/auth/issues/2854 (fix open
+// as supabase/auth#2860). It needs many users challenging at once, so
+// in practice only bulk-signup.test.js hits it (~1 run in 13 on CI).
+// Retrying is safe: the failed challenge's transaction rolled back, and
+// a retry just creates a fresh challenge. Anything else -- a 4xx, a
+// failing enroll or verify, or a 500 that survives the retries --
+// still fails the test.
+const CHALLENGE_ATTEMPTS = 3
+
+async function challengeFactor(client, factorId, email) {
+  for (let attempt = 1; ; attempt++) {
+    const { data, error } = await client.auth.mfa.challenge({ factorId })
+    if (!error) return data
+    if (error.status !== 500 || attempt === CHALLENGE_ATTEMPTS) throw error
+    mfaChallengeRetries.push({ email, attempt, status: error.status, message: error.message })
+    await new Promise((resolve) => setTimeout(resolve, 50 * attempt))
+  }
+}
+
 // The second half of confirmSignup on its own: adds an authenticator to
 // the logged-in user on `client` and enters its first code.
 export async function completeMfaSetup(client, email) {
   const { data: factor, error: enrollError } = await client.auth.mfa.enroll({ factorType: 'totp' })
   if (enrollError) throw enrollError
   totpSecrets.set(email, factor.totp.secret)
-  const { data: verified, error: verifyError } = await client.auth.mfa.challengeAndVerify({
+  const challenge = await challengeFactor(client, factor.id, email)
+  const { data: verified, error: verifyError } = await client.auth.mfa.verify({
     factorId: factor.id,
+    challengeId: challenge.id,
     code: totp(factor.totp.secret),
   })
   if (verifyError) throw verifyError
