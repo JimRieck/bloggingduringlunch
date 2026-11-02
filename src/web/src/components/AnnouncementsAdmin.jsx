@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { describeDelivery } from '../lib/announcements.js'
 import { formatSiteDateTime } from '../lib/siteTime.js'
 import { AnnouncementForm } from './AnnouncementForm.jsx'
@@ -10,7 +11,8 @@ import './Announcements.css'
 // /admin/announcements: email feature announcements to every active
 // user. The composer at the top, saved drafts below it, then everything
 // sent so far.
-export function AnnouncementsAdmin({ session }) {
+export function AnnouncementsAdmin() {
+  const session = useSession()
   const [announcements, setAnnouncements] = useState(null)
   const [senderNames, setSenderNames] = useState({})
   const [recipients, setRecipients] = useState(null)

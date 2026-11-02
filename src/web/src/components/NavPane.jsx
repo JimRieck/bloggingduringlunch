@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useFeatureFlags } from '../lib/featureFlags.js'
+import { useAccountStore, useSession } from '../stores/index.js'
 import { Avatar } from './Avatar.jsx'
 import { ProfileImageModal } from './ProfileImageModal.jsx'
 import { InviteMemberModal } from './InviteMemberModal.jsx'
@@ -27,19 +28,20 @@ function NavSection({ label, showLabels, children }) {
   )
 }
 
-export function NavPane({
-  userId,
-  profile,
-  displayName,
-  email,
-  ownedOrg,
-  orgAdmin,
-  canImport,
-  isSiteAdmin,
-  onAvatarUploaded,
-  onNameUpdated,
-  onOrgRenamed,
-}) {
+// Reads the signed-in person's account straight from the stores, so
+// App.jsx only has to place it.
+export function NavPane() {
+  const session = useSession()
+  const profile = useAccountStore((s) => s.profile)
+  const ownedOrgId = useAccountStore((s) => s.ownedOrgId)
+  const orgAdmin = useAccountStore((s) => s.orgAdmin)
+  const canImport = useAccountStore((s) => Boolean(s.authorOrg))
+  const isSiteAdmin = useAccountStore((s) => s.isSiteAdmin)
+  const updateProfile = useAccountStore((s) => s.updateProfile)
+  const renameOrg = useAccountStore((s) => s.renameOrg)
+  const userId = session.user.id
+  const email = session.user.email
+  const displayName = profile?.display_name
   const [collapsed, setCollapsed] = useState(getStoredCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
@@ -157,9 +159,9 @@ export function NavPane({
             </a>
           )}
 
-          {(ownedOrg || orgAdmin) && (
+          {(ownedOrgId || orgAdmin) && (
             <NavSection label="Org Admin" showLabels={showLabels}>
-              {ownedOrg && (
+              {ownedOrgId && (
                 <button type="button" onClick={() => setShowInviteModal(true)} title="Invite by email">
                   <span className="nav-icon" aria-hidden="true">
                     ✉️
@@ -221,8 +223,8 @@ export function NavPane({
           currentUrl={profile?.avatar_url}
           currentName={displayName}
           label={displayName || email}
-          onUploaded={onAvatarUploaded}
-          onNameUpdated={onNameUpdated}
+          onUploaded={(url) => updateProfile({ avatar_url: url })}
+          onNameUpdated={(name) => updateProfile({ display_name: name })}
           onClose={() => setShowImageModal(false)}
         />
       )}
@@ -233,7 +235,7 @@ export function NavPane({
         <OrgNameModal
           organizationId={orgAdmin.id}
           currentName={orgAdmin.name}
-          onRenamed={(name) => onOrgRenamed(orgAdmin.id, name)}
+          onRenamed={(name) => renameOrg(orgAdmin.id, name)}
           onClose={() => setShowOrgModal(false)}
         />
       )}

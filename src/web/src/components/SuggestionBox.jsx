@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { formatSiteDate } from '../lib/siteTime.js'
 import { SUGGESTION_STATUS_LABELS } from '../lib/suggestionStatus.js'
 import './SuggestionBox.css'
 
-export function SuggestionBox({ session }) {
+export function SuggestionBox() {
+  const session = useSession()
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import { resolveCategoryIds, resolveTagIds } from '../lib/taxonomy.js'
 import { CircularProgress } from './CircularProgress.jsx'
 import './ImportFromWordPress.css'
@@ -81,7 +82,8 @@ function normalizeSite(input) {
     .replace(/\/.*$/, '')
 }
 
-export function ImportFromWordPress({ session }) {
+export function ImportFromWordPress() {
+  const session = useSession()
   const [membership, setMembership] = useState(undefined)
   const [siteInput, setSiteInput] = useState('')
   const [fetchedSite, setFetchedSite] = useState('')

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Avatar } from './Avatar.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import './CommentSection.css'
 import { formatSiteLongDate as formatDate } from '../lib/siteTime.js'
 
-export function CommentSection({ postId, session }) {
+export function CommentSection({ postId }) {
+  const session = useSession()
   const [comments, setComments] = useState(null)
   const [body, setBody] = useState('')
   const [error, setError] = useState('')

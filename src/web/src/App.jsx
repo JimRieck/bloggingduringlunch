@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import './App.css'
 import { AdminPanel } from './components/AdminPanel.jsx'
 import { AnnouncementsAdmin } from './components/AnnouncementsAdmin.jsx'
@@ -21,111 +21,34 @@ import { SocialPosting } from './components/SocialPosting.jsx'
 import { SuggestionBox } from './components/SuggestionBox.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
-import { supabase } from './lib/supabaseClient.js'
 import { getTenantSlugFromHostname } from './lib/tenant.js'
 import { mfaStep } from './lib/mfa.js'
+import { useAccountStore, useAuthStore } from './stores/index.js'
 
 function App() {
   const tenantSlug = getTenantSlugFromHostname()
-  const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [ownedOrg, setOwnedOrg] = useState(null)
-  const [authorOrg, setAuthorOrg] = useState(undefined)
-  const [orgAdmin, setOrgAdmin] = useState(null)
-  const [isSiteAdmin, setIsSiteAdmin] = useState(false)
-  const [passwordRecovery, setPasswordRecovery] = useState(false)
-  const [disabledNotice, setDisabledNotice] = useState(false)
-  // The session, but only once two-factor is done -- before that the
-  // database refuses every request, so there's nothing to load yet.
-  const signedIn = session && !mfaStep(session) ? session : null
+  const session = useAuthStore((s) => s.session)
+  const passwordRecovery = useAuthStore((s) => s.passwordRecovery)
+  const disabledNotice = useAuthStore((s) => s.disabledNotice)
+  const profile = useAccountStore((s) => s.profile)
+  const authorOrg = useAccountStore((s) => s.authorOrg)
+  const isSiteAdmin = useAccountStore((s) => s.isSiteAdmin)
+  // Only once two-factor is done -- before that the database refuses
+  // every request, so there's no account to load yet. The id rather than
+  // the session object, which is replaced on every hourly token refresh.
+  const signedInUserId = session && !mfaStep(session) ? session.user.id : null
+
+  useEffect(() => useAuthStore.getState().start(), [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
-      // supabase-js has no distinct INVITE event -- an admin-generated
-      // invite link fires plain SIGNED_IN, so a `?invited=1` marker on
-      // the invite email's redirectTo is how we detect "this login
-      // needs to set a password," same as a real recovery link.
-      if (event === 'SIGNED_IN' && new URLSearchParams(window.location.search).get('invited') === '1') {
-        setPasswordRecovery(true)
-        window.history.replaceState({}, '', window.location.pathname)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+    const account = useAccountStore.getState()
+    if (signedInUserId) account.load(signedInUserId)
+    else account.clear()
+  }, [signedInUserId])
 
   useEffect(() => {
-    if (!signedIn) return
-    supabase
-      .from('profiles')
-      .select('display_name, avatar_url, profile_setup_dismissed, disabled')
-      .eq('id', signedIn.user.id)
-      .single()
-      .then(({ data }) => setProfile(data))
-  }, [signedIn])
-
-  useEffect(() => {
-    // Auth-level bans (see AdminPanel.jsx) block new logins/refreshes
-    // immediately but don't revoke an already-issued access token, so
-    // an already-open session could otherwise keep working for up to
-    // an hour. This closes that gap client-side as soon as we notice.
-    if (profile?.disabled) {
-      supabase.auth.signOut().then(() => setDisabledNotice(true))
-    }
+    if (profile?.disabled) useAuthStore.getState().signOutDisabled()
   }, [profile])
-
-  useEffect(() => {
-    if (!signedIn) return
-    supabase
-      .from('profiles')
-      .select('is_site_admin')
-      .eq('id', signedIn.user.id)
-      .maybeSingle()
-      .then(({ data }) => setIsSiteAdmin(data?.is_site_admin ?? false))
-  }, [signedIn])
-
-  useEffect(() => {
-    if (!signedIn) return
-    supabase
-      .from('memberships')
-      .select('organization_id')
-      .eq('user_id', signedIn.user.id)
-      .eq('role', 'owner')
-      .maybeSingle()
-      .then(({ data }) => setOwnedOrg(data?.organization_id ?? null))
-  }, [signedIn])
-
-  useEffect(() => {
-    if (!signedIn) return
-    supabase
-      .from('memberships')
-      .select('role, organizations(id, name, slug)')
-      .eq('user_id', signedIn.user.id)
-      .in('role', ['owner', 'editor'])
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setAuthorOrg(data ? { ...data.organizations, role: data.role } : null))
-  }, [signedIn])
-
-  // Separate from ownedOrg/authorOrg -- this is specifically "can this
-  // person rename the org," which the organizations RLS policy grants
-  // to owner OR admin (is_org_admin), not just an owner (ownedOrg) or a
-  // post-author (authorOrg, which also admits 'editor').
-  useEffect(() => {
-    if (!signedIn) return
-    supabase
-      .from('memberships')
-      .select('role, organizations(id, name)')
-      .eq('user_id', signedIn.user.id)
-      .in('role', ['owner', 'admin'])
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setOrgAdmin(data ? { ...data.organizations, role: data.role } : null))
-  }, [signedIn])
 
   const pathname = window.location.pathname
 
@@ -140,12 +63,12 @@ function App() {
 
   if (tenantSlug) {
     const postSlug = pathname.slice(1) || undefined
-    return <TenantBlog slug={tenantSlug} postSlug={postSlug} session={session} />
+    return <TenantBlog slug={tenantSlug} postSlug={postSlug} />
   }
 
   if (pathname.startsWith('/blog/')) {
     const [orgSlug, postSlug] = pathname.slice('/blog/'.length).split('/')
-    return <TenantBlog slug={orgSlug} postSlug={postSlug || undefined} session={session} />
+    return <TenantBlog slug={orgSlug} postSlug={postSlug || undefined} />
   }
 
   // Rendered bare, like the published blog above, not inside the app
@@ -170,7 +93,7 @@ function App() {
         </div>
       )
     } else {
-      content = <UserDirectory session={session} />
+      content = <UserDirectory />
     }
   } else if (pathname === '/admin') {
     if (!session) {
@@ -187,7 +110,7 @@ function App() {
         </div>
       )
     } else {
-      content = <AdminPanel session={session} />
+      content = <AdminPanel />
     }
   } else if (pathname === '/admin/announcements') {
     if (!session) {
@@ -204,7 +127,7 @@ function App() {
         </div>
       )
     } else {
-      content = <AnnouncementsAdmin session={session} />
+      content = <AnnouncementsAdmin />
     }
   } else if (pathname === '/social') {
     if (!session) {
@@ -215,7 +138,7 @@ function App() {
         </div>
       )
     } else {
-      content = <SocialPosting session={session} />
+      content = <SocialPosting />
     }
   } else if (pathname === '/suggestions') {
     if (!session) {
@@ -226,7 +149,7 @@ function App() {
         </div>
       )
     } else {
-      content = <SuggestionBox session={session} />
+      content = <SuggestionBox />
     }
   } else if (pathname === '/search') {
     if (!session) {
@@ -249,7 +172,7 @@ function App() {
       )
     } else {
       const postId = new URLSearchParams(window.location.search).get('id') || undefined
-      content = <PostForm session={session} postId={postId} onSaved={() => (window.location.href = '/')} />
+      content = <PostForm postId={postId} onSaved={() => (window.location.href = '/')} />
     }
   } else if (pathname === '/posts/import') {
     if (!session) {
@@ -260,7 +183,7 @@ function App() {
         </div>
       )
     } else {
-      content = <ImportFromWordPress session={session} />
+      content = <ImportFromWordPress />
     }
   } else if (pathname === '/posts/bulk-tag') {
     if (!session) {
@@ -271,10 +194,10 @@ function App() {
         </div>
       )
     } else {
-      content = <BulkAutoTag session={session} />
+      content = <BulkAutoTag />
     }
   } else if (passwordRecovery) {
-    content = <SetNewPasswordForm onDone={() => setPasswordRecovery(false)} />
+    content = <SetNewPasswordForm onDone={() => useAuthStore.getState().finishPasswordRecovery()} />
   } else if (!session) {
     content = (
       <>
@@ -299,8 +222,8 @@ function App() {
         {profile && !profile.avatar_url && !profile.profile_setup_dismissed && (
           <ProfileSetupBanner
             userId={session.user.id}
-            onUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
-            onDismissed={() => setProfile((p) => ({ ...p, profile_setup_dismissed: true }))}
+            onUploaded={(url) => useAccountStore.getState().updateProfile({ avatar_url: url })}
+            onDismissed={() => useAccountStore.getState().updateProfile({ profile_setup_dismissed: true })}
           />
         )}
         <header id="site-header">
@@ -331,22 +254,7 @@ function App() {
   if (session && !passwordRecovery) {
     return (
       <div id="app-shell">
-        <NavPane
-          userId={session.user.id}
-          profile={profile}
-          displayName={profile?.display_name}
-          email={session.user.email}
-          ownedOrg={ownedOrg}
-          orgAdmin={orgAdmin}
-          canImport={!!authorOrg}
-          isSiteAdmin={isSiteAdmin}
-          onAvatarUploaded={(url) => setProfile((p) => ({ ...p, avatar_url: url }))}
-          onNameUpdated={(name) => setProfile((p) => ({ ...p, display_name: name }))}
-          onOrgRenamed={(orgId, name) => {
-            setOrgAdmin((o) => (o && o.id === orgId ? { ...o, name } : o))
-            setAuthorOrg((o) => (o && o.id === orgId ? { ...o, name } : o))
-          }}
-        />
+        <NavPane />
         <div id="app-content">{content}</div>
       </div>
     )

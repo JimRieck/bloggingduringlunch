@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useSession } from '../stores/index.js'
 import './StarRating.css'
 
-export function StarRating({ postId, session }) {
+export function StarRating({ postId }) {
+  const session = useSession()
   const [summary, setSummary] = useState(null)
   const [myRating, setMyRating] = useState(null)
   const [hoverValue, setHoverValue] = useState(0)
