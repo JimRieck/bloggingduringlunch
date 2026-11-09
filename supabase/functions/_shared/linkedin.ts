@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { uploadThumbnail } from './linkedinThumbnail.ts'
+import { linkedinPostTemplate } from './linkedinTemplate.ts'
 
 // Both bases are overridable so the whole OAuth + posting flow can be
 // exercised against a local mock instead of the real LinkedIn.
@@ -17,6 +18,8 @@ export type ScheduleRow = {
   post_id: string | null
   messages: string[]
   run_count: number
+  recurrence?: string
+  next_run_at?: string | null
 }
 
 export function serviceClient(): SupabaseClient {
@@ -38,11 +41,64 @@ function plainText(html: string) {
 
 export type RunResult = { ok: boolean; error: string | null }
 
+// The public address of a blog post, tagged so a click from LinkedIn
+// counts as LinkedIn in the admin traffic sources, even when LinkedIn's
+// app hides the referrer.
+function blogPostUrl(orgSlug: string, postSlug: string) {
+  return `${APP_URL}/blog/${orgSlug}/${postSlug}?utm_source=linkedin`
+}
+
+function orgSlugOf(post: { organizations?: unknown }) {
+  const org = Array.isArray(post.organizations) ? post.organizations[0] : post.organizations
+  return (org as { slug?: string } | null | undefined)?.slug ?? null
+}
+
+// What this run posts: its text and the blog post it links (if any).
+// Ordinary schedules take turns through their variations. A random
+// schedule posts the slot that's due -- the text and post the author
+// reviewed -- unless that post has since been unpublished or deleted, in
+// which case it picks another of the author's published posts at random
+// (with the same title/description/link text) rather than fail.
+async function contentFor(
+  admin: SupabaseClient,
+  row: ScheduleRow,
+): Promise<{ message: string; postId: string | null } | { error: string }> {
+  if (row.recurrence !== 'random') {
+    return { message: row.messages[row.run_count % row.messages.length], postId: row.post_id }
+  }
+
+  const { data: slot } = await admin
+    .from('scheduled_social_post_slots')
+    .select('post_id, message')
+    .eq('schedule_id', row.id)
+    .eq('run_at', row.next_run_at)
+    .maybeSingle()
+  if (!slot) return { error: 'slot_missing' }
+
+  if (slot.post_id) {
+    const { data: planned } = await admin.from('posts').select('status').eq('id', slot.post_id).maybeSingle()
+    if (planned?.status === 'published') return { message: slot.message, postId: slot.post_id }
+  }
+
+  const { data: candidates } = await admin
+    .from('posts')
+    .select('id, title, slug, description, organizations(slug)')
+    .eq('author_id', row.user_id)
+    .eq('status', 'published')
+  const usable = (candidates ?? []).filter((p) => orgSlugOf(p))
+  if (usable.length === 0) return { error: 'post_not_published' }
+  const pick = usable[Math.floor(Math.random() * usable.length)]
+  return {
+    message: linkedinPostTemplate(pick.title, blogPostUrl(orgSlugOf(pick)!, pick.slug), pick.description),
+    postId: pick.id,
+  }
+}
+
 // Posts one occurrence of a schedule and records the outcome via
 // complete_social_post_run (which also works out the next occurrence).
 // Never throws -- a failure is data on the schedule, not a crashed worker.
 export async function runSchedule(admin: SupabaseClient, row: ScheduleRow): Promise<RunResult> {
-  const message = row.messages[row.run_count % row.messages.length]
+  let message = ''
 
   async function finish(ok: boolean, externalId: string | null, error: string | null, fatal = false): Promise<RunResult> {
     await admin.rpc('complete_social_post_run', {
@@ -64,21 +120,23 @@ export async function runSchedule(admin: SupabaseClient, row: ScheduleRow): Prom
   if (!conn) return finish(false, null, 'not_connected', true)
   if (new Date(conn.expires_at) <= new Date()) return finish(false, null, 'token_expired', true)
 
+  const content = await contentFor(admin, row)
+  if ('error' in content) return finish(false, null, content.error)
+  message = content.message
+
   let article: { source: string; title: string; description: string; thumbnail?: string } | undefined
-  if (row.post_id) {
+  if (content.postId) {
     const { data: post } = await admin
       .from('posts')
       .select('title, slug, description, content, status, thumbnail_url, organizations(slug)')
-      .eq('id', row.post_id)
+      .eq('id', content.postId)
       .maybeSingle()
-    const org = Array.isArray(post?.organizations) ? post?.organizations[0] : post?.organizations
-    if (!post || post.status !== 'published' || !org?.slug) {
+    const orgSlug = post ? orgSlugOf(post) : null
+    if (!post || post.status !== 'published' || !orgSlug) {
       return finish(false, null, 'post_not_published')
     }
     article = {
-      // Tagged so a click from LinkedIn counts as LinkedIn in the admin
-      // traffic sources, even when LinkedIn's app hides the referrer.
-      source: `${APP_URL}/blog/${org.slug}/${post.slug}?utm_source=linkedin`,
+      source: blogPostUrl(orgSlug, post.slug),
       title: post.title,
       // The author's own description when there is one; otherwise the
       // start of the post itself.

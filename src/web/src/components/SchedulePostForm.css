@@ -10,6 +10,7 @@
     background: var(--bg);
     color: var(--text-h);
     box-sizing: border-box;
+    width: 100%;
     max-width: 100%;
 
     &:focus-visible {

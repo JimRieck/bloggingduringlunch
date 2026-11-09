@@ -1,4 +1,10 @@
+/* width + border-box: the column fills the screen (padding included)
+   instead of growing to fit its widest content -- a dropdown is as wide
+   as its longest option, and a long post title pushed the page past a
+   phone's width. */
 #social-posting {
+  width: 100%;
+  box-sizing: border-box;
   max-width: 720px;
   margin: 0 auto;
   padding: 32px;

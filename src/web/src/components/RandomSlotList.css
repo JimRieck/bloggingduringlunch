@@ -1,0 +1,54 @@
+/* A random schedule's posts, day by day. Scrolls inside itself so a
+   90-day plan doesn't push the rest of the page miles down. */
+.random-slot-list {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 4px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.random-slot-day {
+  h5 {
+    position: sticky;
+    top: 0;
+    margin: 0;
+    padding: 10px 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-h);
+    background: var(--bg);
+  }
+
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: 5.5em 1fr;
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  time {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.random-slot-title {
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}

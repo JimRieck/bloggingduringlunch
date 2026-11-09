@@ -1,0 +1,71 @@
+.random-planner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.random-planner-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+
+  /* Wide enough for a whole date ("11/09/2026" plus the picker icon);
+     the row wraps rather than clipping it. */
+  .field {
+    margin-bottom: 0;
+    min-width: 150px;
+    flex: 1;
+  }
+
+  input[type='date'],
+  input[type='time'],
+  select {
+    font: inherit;
+    font-size: 16px;
+    padding: 8px 10px;
+    min-height: 40px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-h);
+    box-sizing: border-box;
+    width: 100%;
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+  }
+
+  /* Two settings a row on a phone, instead of one squeezed row. */
+  @media (max-width: 768px) {
+    .field {
+      flex: 1 1 calc(50% - 8px);
+    }
+  }
+}
+
+.random-planner-review {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  h4 {
+    margin: 0;
+    font-size: 15px;
+  }
+}
+
+.random-planner-hours {
+  display: flex;
+  gap: 12px 16px;
+  flex: 2 1 316px;
+
+  .field {
+    min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    flex-basis: 100%;
+  }
+}
