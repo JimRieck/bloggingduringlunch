@@ -41,3 +41,16 @@ describe('isLinkedInUnsupportedImage', () => {
     expect(isLinkedInUnsupportedImage(url)).toBe(expected)
   })
 })
+
+describe('the server’s copy of linkedinPostTemplate', () => {
+  it('writes exactly the same text as the browser’s', async () => {
+    const { linkedinPostTemplate: serverTemplate } = await import(
+      '../../../../supabase/functions/_shared/linkedinTemplate.ts'
+    )
+    for (const description of ['Why I ship on my lunch break.', '  ', null, undefined]) {
+      expect(serverTemplate('Hello world', 'https://x.example/a', description)).toBe(
+        linkedinPostTemplate('Hello world', 'https://x.example/a', description),
+      )
+    }
+  })
+})

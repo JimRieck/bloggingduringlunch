@@ -71,7 +71,9 @@ export function ScheduledPostList({ schedules, posts, runs, onChanged }) {
             return (
               <li key={s.id} className="scheduled-row">
                 <div className="scheduled-main">
-                  <p className="scheduled-message">{s.messages[0]}</p>
+                  <p className="scheduled-message">
+                    {s.recurrence === 'random' ? 'A random blog post each time' : s.messages[0]}
+                  </p>
                   <div className="scheduled-meta">
                     <span className={`status-badge status-${s.status}`}>{POST_STATUS_LABELS[s.status]}</span>
                     <span>{RECURRENCE_LABELS[s.recurrence]}</span>
@@ -81,6 +83,7 @@ export function ScheduledPostList({ schedules, posts, runs, onChanged }) {
                       </span>
                     )}
                     {s.post_id && <span>Links to: {titleById.get(s.post_id) ?? 'a blog post'}</span>}
+                    {s.recurrence === 'random' && s.ends_at && <span>Until {formatWhen(s.ends_at, s.timezone)}</span>}
                   </div>
                   <div className="scheduled-meta">
                     {s.status === 'scheduled' && s.next_run_at && <span>Next: {formatWhen(s.next_run_at, s.timezone)}</span>}
@@ -120,7 +123,7 @@ export function ScheduledPostList({ schedules, posts, runs, onChanged }) {
                     Delete
                   </button>
                 </div>
-                {openId === s.id && <ScheduleTimeline schedule={s} />}
+                {openId === s.id && <ScheduleTimeline schedule={s} titleById={titleById} />}
               </li>
             )
           })}

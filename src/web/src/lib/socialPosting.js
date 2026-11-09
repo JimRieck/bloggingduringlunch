@@ -1,5 +1,7 @@
 // Mirrors public.social_recurrence / social_post_status
-// (20260921100000_linkedin_scheduled_posts.sql).
+// (20260921100000_linkedin_scheduled_posts.sql). 'random' isn't one of
+// these options: it's chosen from "Link a blog post" instead, and planned
+// by lib/randomSchedule.js.
 export const RECURRENCE_OPTIONS = [
   { value: 'none', label: 'Does not repeat' },
   { value: 'daily', label: 'Every day' },
@@ -12,6 +14,7 @@ export const RECURRENCE_LABELS = {
   daily: 'Repeats daily',
   weekly: 'Repeats weekly',
   monthly: 'Repeats monthly',
+  random: 'Random blog posts',
 }
 
 export const POST_STATUS_LABELS = {
@@ -33,6 +36,7 @@ export function describeScheduleError(error) {
   if (error === 'not_connected') return 'LinkedIn isn’t connected. Reconnect, then resume this post.'
   if (error === 'token_expired') return 'Your LinkedIn connection expired. Reconnect, then resume this post.'
   if (error === 'post_not_published') return 'The blog post this links to isn’t published.'
+  if (error === 'slot_missing') return 'This time wasn’t in the random schedule any more, so nothing was posted.'
   if (error.startsWith('linkedin_401') || error.startsWith('linkedin_403')) {
     return 'LinkedIn rejected the connection. Reconnect, then resume this post.'
   }
