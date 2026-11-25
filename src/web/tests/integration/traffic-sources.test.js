@@ -12,12 +12,15 @@
 // this run.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { adminClient, cleanupTestData, confirmSignup, createTestClient } from '../helpers/testClients.js'
+import { siteDateString } from '../../src/lib/siteTime.js'
 
 const runId = crypto.randomUUID().slice(0, 8)
 const emailFor = (name) => `${name}.${runId}@example.com`
 const PASSWORD = 'password123'
 const DAY = '2025-05-01'
-const TODAY = new Date().toISOString().slice(0, 10)
+// The Eastern date, which is what bot_visit_summary's days are -- the UTC
+// date is already tomorrow's after 7pm Eastern (8pm in summer).
+const TODAY = siteDateString()
 const BOT = `TestBot-${runId}`
 
 const createdUserIds = []

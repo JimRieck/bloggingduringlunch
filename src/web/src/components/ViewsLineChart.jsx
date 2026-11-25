@@ -21,7 +21,8 @@ function niceMax(value) {
   return Math.ceil(value / pow) * pow
 }
 
-export function ViewsLineChart({ data, formatLabel }) {
+// `unit` names what's counted, for the tooltip ("3 views", "1 hit").
+export function ViewsLineChart({ data, formatLabel, unit = 'view', ariaLabel = 'Views per day' }) {
   const [hoverIndex, setHoverIndex] = useState(null)
 
   const maxViews = niceMax(Math.max(1, ...data.map((d) => d.views)))
@@ -57,7 +58,7 @@ export function ViewsLineChart({ data, formatLabel }) {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label="Views per day"
+        aria-label={ariaLabel}
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
       >
@@ -100,7 +101,8 @@ export function ViewsLineChart({ data, formatLabel }) {
 
       {hovered && (
         <div className="chart-tooltip" style={{ left: `${(xFor(hoverIndex) / WIDTH) * 100}%` }}>
-          <strong>{hovered.views}</strong> view{hovered.views === 1 ? '' : 's'}
+          <strong>{hovered.views}</strong> {unit}
+          {hovered.views === 1 ? '' : 's'}
           <span>{formatLabel(hovered.date)}</span>
         </div>
       )}
