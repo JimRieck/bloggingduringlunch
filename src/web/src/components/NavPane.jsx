@@ -188,6 +188,12 @@ export function NavPane() {
                 </span>
                 {showLabels && <span>Website Stats</span>}
               </a>
+              <a href="/admin/visits" title="Home page visits">
+                <span className="nav-icon" aria-hidden="true">
+                  🏠
+                </span>
+                {showLabels && <span>Home page visits</span>}
+              </a>
               <a href="/admin/announcements" title="Announcements">
                 <span className="nav-icon" aria-hidden="true">
                   📬

@@ -21,8 +21,11 @@ import { SocialPosting } from './components/SocialPosting.jsx'
 import { SuggestionBox } from './components/SuggestionBox.jsx'
 import { TenantBlog } from './components/TenantBlog.jsx'
 import { UserDirectory } from './components/UserDirectory.jsx'
+import { HomeVisits } from './components/HomeVisits.jsx'
 import { getTenantSlugFromHostname } from './lib/tenant.js'
 import { mfaStep } from './lib/mfa.js'
+import { recordSiteVisit } from './lib/siteVisit.js'
+import { supabase } from './lib/supabaseClient.js'
 import { useAccountStore, useAuthStore } from './stores/index.js'
 
 function App() {
@@ -51,6 +54,23 @@ function App() {
   }, [profile])
 
   const pathname = window.location.pathname
+
+  // Home page visits (admin: /admin/visits). Only signed-out visitors --
+  // a signed-in person's "/" is their own dashboard, not the public home
+  // page. Asks for the session itself rather than trusting the store,
+  // which is still null on the first render for someone who is signed
+  // in. `cancelled` keeps React's dev double-run to one visit.
+  const isPublicHome = !tenantSlug && pathname === '/'
+  useEffect(() => {
+    if (!isPublicHome) return
+    let cancelled = false
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && !data.session) recordSiteVisit()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isPublicHome])
 
   // Two-factor is required for every account: until the authenticator
   // code is entered, a password-only login sees nothing else -- the
@@ -128,6 +148,23 @@ function App() {
       )
     } else {
       content = <AnnouncementsAdmin />
+    }
+  } else if (pathname === '/admin/visits') {
+    if (!session) {
+      content = (
+        <div id="directory-gate">
+          <p>Log in to access site admin.</p>
+          <AuthPanel />
+        </div>
+      )
+    } else if (!isSiteAdmin) {
+      content = (
+        <div id="directory-gate">
+          <p>You don&rsquo;t have access to this page.</p>
+        </div>
+      )
+    } else {
+      content = <HomeVisits />
     }
   } else if (pathname === '/social') {
     if (!session) {
